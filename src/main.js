@@ -49,6 +49,7 @@ renderer.outputColorSpace = SRGBColorSpace;
 renderer.setPixelRatio(quality.pixelRatio);
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = PCFSoftShadowMap;
+renderer.domElement.style.touchAction = 'none';
 document.getElementById('app').appendChild(renderer.domElement);
 
 const lighting = createLighting(scene, refs, quality);
@@ -73,6 +74,22 @@ ibrahim.rotation.y = player.yaw;
 const peds = createPedestrians(scene, city.paths, quality.peds, Math.random, quality.shadows);
 const missions = createMissions(scene);
 const input = createInput();
+input.setActions({
+  play() {
+    if (started) return;
+    started = true;
+    document.getElementById('start').classList.add('hidden');
+    document.getElementById('play').blur();
+    audio.resume();
+    rig.state.yaw = player.yaw;
+    rig.snap();
+  },
+  resume() {
+    paused = false;
+    document.getElementById('pause').classList.add('hidden');
+    document.getElementById('resume').blur();
+  },
+});
 const audio = createAudio();
 const ui = createUi();
 const rig = createCameraRig(camera);
@@ -226,18 +243,13 @@ function cinematic(dt) {
   camera.lookAt(fx + 12, 1.6, fz + 8);
 }
 
-document.getElementById('play').addEventListener('click', () => {
-  started = true;
-  document.getElementById('start').classList.add('hidden');
-  document.getElementById('play').blur();
-  audio.resume();
-  rig.state.yaw = player.yaw;
-  rig.snap();
-});
-document.getElementById('resume').addEventListener('click', () => {
-  paused = false;
-  document.getElementById('pause').classList.add('hidden');
-});
+window.__cotonou = {
+  get x() { return player.pos.x; },
+  get z() { return player.pos.z; },
+  get vehicle() { return Boolean(player.vehicle); },
+  get paused() { return paused; },
+  get started() { return started; },
+};
 
 function frame(now) {
   const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));

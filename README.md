@@ -42,7 +42,7 @@ Aucun serveur, aucune variable d'environnement, aucune base de données.
 
 ### Clavier
 
-Les déplacements suivent la position physique des touches WASD. Sur un clavier AZERTY, cela correspond à **ZQSD**.
+Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZERTY comme QWERTY : ce sont à la fois les lettres et la position physique du bloc WASD.
 
 | Action | Touche |
 | --- | --- |

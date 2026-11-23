@@ -46,12 +46,25 @@
       </div>
     </div>
     <div id="touch">
-      <div id="joystick"><div id="stick"></div></div>
+      <div id="joy-pad" aria-hidden="true"></div>
+      <div id="joystick" aria-label="Joystick"><div id="stick"></div></div>
       <div id="buttons">
-        <button type="button" id="btn-run">Courir</button>
-        <button type="button" id="btn-vehicle">Monter</button>
-        <button type="button" id="btn-horn">Klaxon</button>
-        <button type="button" id="btn-pause">Pause</button>
+        <button type="button" id="btn-run" aria-label="Courir">
+          <span id="run-label">Courir</span>
+          <small id="run-key">Maj</small>
+        </button>
+        <button type="button" id="btn-vehicle" aria-label="Monter dans un véhicule">
+          <span id="vehicle-label">Monter</span>
+          <small>E</small>
+        </button>
+        <button type="button" id="btn-horn" aria-label="Klaxon">
+          <span>Klaxon</span>
+          <small>H</small>
+        </button>
+        <button type="button" id="btn-pause" aria-label="Pause">
+          <span>Pause</span>
+          <small>Échap</small>
+        </button>
       </div>
     </div>
     <div id="start" class="overlay">
@@ -67,9 +80,9 @@
           <li>Souris glissée — caméra · Échap — pause</li>
         </ul>
         <ul class="controls mobile-controls">
-          <li>Joystick à gauche pour marcher. Pousse à fond pour courir, ou garde Courir.</li>
-          <li>Monter / Sortir pour le SUV noir et les zemidjans jaunes.</li>
-          <li>Glisse sur l'écran pour tourner la caméra.</li>
+          <li>Zone gauche : marcher. Pousse à fond pour courir, ou garde le bouton Courir.</li>
+          <li>Monter / Sortir pour le SUV noir et les zemidjans jaunes. Klaxon et Pause à droite.</li>
+          <li>Glisse à droite de l'écran pour tourner la caméra.</li>
         </ul>
       </div>
     </div>
