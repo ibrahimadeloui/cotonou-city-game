@@ -17,8 +17,10 @@ html, body {
   overflow: hidden;
   background: #102033;
   touch-action: none;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #app, #app canvas {
@@ -231,59 +233,103 @@ html, body {
 
 #arrow.drop { border-left-color: #3dd68c; }
 
-#touch { display: none; }
+#touch {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+#joy-pad {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: min(48vw, 300px);
+  height: min(54vh, 460px);
+  touch-action: none;
+  pointer-events: auto;
+}
 
 #joystick {
   position: fixed;
-  z-index: 8;
-  left: calc(16px + env(safe-area-inset-left));
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  width: 128px;
-  height: 128px;
+  z-index: 2;
+  left: calc(18px + env(safe-area-inset-left));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 158px;
+  height: 158px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  border: 3px solid rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.03);
   touch-action: none;
+  pointer-events: auto;
 }
+
+#joystick.active { border-color: rgba(240, 193, 74, 0.9); }
 
 #stick {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 54px;
-  height: 54px;
-  margin: -27px 0 0 -27px;
+  width: 68px;
+  height: 68px;
+  margin: -34px 0 0 -34px;
   border-radius: 50%;
-  background: rgba(240, 193, 74, 0.92);
+  background: rgba(240, 193, 74, 0.95);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 #buttons {
   position: fixed;
-  z-index: 8;
-  right: calc(14px + env(safe-area-inset-right));
-  bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 3;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-#buttons button {
-  width: 74px;
-  height: 74px;
-  border-radius: 50%;
-  border: 2px solid rgba(240, 193, 74, 0.6);
-  background: rgba(12, 18, 28, 0.78);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 750;
+  gap: 12px;
+  pointer-events: auto;
   touch-action: none;
 }
 
-#buttons button.held, #buttons button:active {
+#buttons button {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 3px solid rgba(240, 193, 74, 0.75);
+  background: rgba(12, 18, 28, 0.88);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  touch-action: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+}
+
+#buttons button small {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+#buttons button.held {
   background: var(--gold);
   color: #1c1406;
+  transform: scale(0.94);
+  border-color: #fff4c8;
 }
+
+#buttons button.held small { opacity: 0.85; }
 
 .overlay {
   position: fixed;
@@ -330,9 +376,21 @@ button.primary, #resume {
   color: #1c1406;
   font: inherit;
   font-weight: 800;
+  font-size: 18px;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 16px 22px;
+  min-height: 56px;
+  width: 100%;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.primary.held, #resume.held { filter: brightness(1.08); transform: scale(0.98); }
+
+#start .card, #pause .card {
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
 }
 
 .controls {
@@ -368,24 +426,21 @@ button.primary, #resume {
   .mobile-controls { display: block; }
   #hint { display: none; }
   #map-wrap {
-    width: 92px;
-    height: 92px;
-    bottom: calc(156px + env(safe-area-inset-bottom));
+    width: 84px;
+    height: 84px;
+    bottom: calc(208px + env(safe-area-inset-bottom));
   }
-  #prompt {
-    left: 118px;
-    right: 96px;
-    bottom: calc(168px + env(safe-area-inset-bottom));
+  #prompt, #speed {
+    left: 12px;
+    right: auto;
+    bottom: auto;
+    top: calc(248px + env(safe-area-inset-top));
     transform: none;
-    width: auto;
-    text-align: center;
+    width: min(220px, 58vw);
+    text-align: left;
     font-size: 14px;
   }
-  #speed {
-    left: 118px;
-    bottom: calc(192px + env(safe-area-inset-bottom));
-    transform: none;
-  }
+  #speed { top: calc(272px + env(safe-area-inset-top)); }
   #radio { display: none; }
   #start {
     background: linear-gradient(180deg, rgba(10, 14, 22, 0) 0%, rgba(10, 14, 22, 0.92) 48%);
@@ -410,11 +465,51 @@ button.primary, #resume {
   #mission-body { font-size: 14px; }
   #mission-meta { justify-content: flex-start; }
   #toast {
-    top: calc(252px + env(safe-area-inset-top));
+    top: calc(300px + env(safe-area-inset-top));
     bottom: auto;
-    width: min(250px, calc(100vw - 24px));
+    width: min(230px, calc(100vw - 120px));
     left: 12px;
     transform: none;
     text-align: left;
   }
+}
+
+@media (max-height: 520px) and (pointer: coarse),
+       (max-height: 520px) and (max-width: 980px) {
+  #touch { display: block; }
+  .desktop-controls { display: none; }
+  .mobile-controls { display: block; }
+  #hint { display: none; }
+  #joystick { width: 124px; height: 124px; }
+  #stick { width: 54px; height: 54px; margin: -27px 0 0 -27px; }
+  #buttons { flex-direction: row; gap: 8px; }
+  #buttons button { width: 78px; height: 78px; font-size: 13px; }
+  #joy-pad { width: min(42vw, 240px); height: min(70vh, 280px); }
+  #map-wrap {
+    top: calc(52px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    left: auto;
+    bottom: auto;
+    width: 72px;
+    height: 72px;
+  }
+  #wanted { top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); padding: 6px 8px; }
+  #wanted p { display: none; }
+  #mission {
+    top: calc(8px + env(safe-area-inset-top));
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(300px, 46vw);
+  }
+  #top-left { max-width: 34vw; padding: 8px 10px; }
+  #player-name { font-size: 16px; }
+  #jobs, #clock { display: none; }
+  #prompt, #speed {
+    top: auto;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    left: 150px;
+    width: auto;
+  }
+  #toast { top: calc(72px + env(safe-area-inset-top)); width: min(260px, 40vw); }
 }

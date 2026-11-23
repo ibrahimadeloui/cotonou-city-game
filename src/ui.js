@@ -62,8 +62,15 @@ export function createUi() {
       }
       setText('toast', game.toast && performance.now() < game.toastUntil ? game.toast : '');
       setText('radio', vehicle ? game.radio : '');
-      document.getElementById('btn-run').textContent = vehicle ? 'Frein' : 'Courir';
-      document.getElementById('btn-vehicle').textContent = vehicle ? 'Sortir' : 'Monter';
+      const ride = vehicle ? '1' : '0';
+      if (cache.get('ride') !== ride) {
+        cache.set('ride', ride);
+        setText('run-label', vehicle ? 'Frein' : 'Courir');
+        setText('run-key', vehicle ? 'Espace' : 'Maj');
+        setText('vehicle-label', vehicle ? 'Sortir' : 'Monter');
+        document.getElementById('btn-vehicle')?.setAttribute('aria-label', vehicle ? 'Descendre du véhicule' : 'Monter dans un véhicule');
+        document.getElementById('btn-run')?.setAttribute('aria-label', vehicle ? 'Frein' : 'Courir');
+      }
       drawMap(ctx, canvas.width, canvas.height, game);
       drawArrow(arrow, camera, target, mission);
     },
