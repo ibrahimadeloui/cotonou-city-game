@@ -82,6 +82,23 @@ html, body {
   color: var(--gold);
 }
 
+#who { display: flex; gap: 10px; align-items: center; }
+
+#avatar {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: #7c4e36 url('./assets/ibrahim-face.jpg') center 38% / 165% no-repeat;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#avatar.held { transform: scale(0.94); }
+
 #player-name {
   margin: 2px 0 0;
   font-size: 22px;
@@ -386,7 +403,17 @@ button.primary, #resume {
   -webkit-tap-highlight-color: transparent;
 }
 
-button.primary.held, #resume.held { filter: brightness(1.08); transform: scale(0.98); }
+button.primary.held, #resume.held, #btn-outfit.held { filter: brightness(1.08); transform: scale(0.98); }
+
+#btn-outfit {
+  margin-top: 12px;
+  margin-right: 8px;
+  width: auto;
+  min-height: 48px;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--gold);
+}
 
 #start .card, #pause .card {
   max-height: calc(100dvh - 24px);

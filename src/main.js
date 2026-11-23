@@ -21,6 +21,7 @@ import { createCity } from './city.js';
 import { createInput } from './input.js';
 import { createLighting } from './lighting.js';
 import { createMissions } from './missions.js';
+import faceUrl from './assets/ibrahim-face.jpg';
 import { createIbrahim, createPedestrians, updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
 import { formatFCFA, resolveCircle } from './utils.js';
@@ -55,7 +56,7 @@ document.getElementById('app').appendChild(renderer.domElement);
 const lighting = createLighting(scene, refs, quality);
 const city = createCity(scene, refs, quality);
 const traffic = createTraffic(scene, city.graph, quality, Math.random);
-const ibrahim = createIbrahim(quality.shadows);
+const ibrahim = createIbrahim(quality.shadows, faceUrl);
 scene.add(ibrahim);
 const player = {
   mesh: ibrahim,
@@ -89,6 +90,12 @@ input.setActions({
     document.getElementById('pause').classList.add('hidden');
     document.getElementById('resume').blur();
   },
+  outfit() {
+    waxOutfit = !waxOutfit;
+    ibrahim.userData.setOutfit(waxOutfit);
+    const button = document.getElementById('btn-outfit');
+    if (button) button.textContent = waxOutfit ? 'Tenue wax' : 'Tenue ville';
+  },
 });
 const audio = createAudio();
 const ui = createUi();
@@ -120,6 +127,8 @@ let lastCrime = 0;
 let bumpCool = 0;
 let radioAt = 0;
 let cinema = 0.6;
+let waxOutfit = true;
+let selfieUntil = 0;
 let last = performance.now();
 
 function resize() {
@@ -236,11 +245,15 @@ function animateWorld(dt, time) {
 }
 
 function cinematic(dt) {
-  cinema += dt * 0.12;
-  const fx = SPAWN.x + 8;
-  const fz = SPAWN.z + 2;
-  camera.position.set(fx - Math.sin(cinema) * 16, 7.2, fz - Math.cos(cinema) * 12);
-  camera.lookAt(fx + 12, 1.6, fz + 8);
+  cinema += dt * 0.35;
+  const sway = Math.sin(cinema) * 0.4;
+  const face = SPAWN.yaw + sway;
+  camera.position.set(
+    SPAWN.x + Math.sin(face) * 2.2,
+    1.58,
+    SPAWN.z + Math.cos(face) * 2.2,
+  );
+  camera.lookAt(SPAWN.x, 1.48, SPAWN.z);
 }
 
 window.__cotonou = {
@@ -272,6 +285,16 @@ function frame(now) {
     return;
   }
 
+  if (edges.outfit) {
+    waxOutfit = !waxOutfit;
+    ibrahim.userData.setOutfit(waxOutfit);
+    const button = document.getElementById('btn-outfit');
+    if (button) button.textContent = waxOutfit ? 'Tenue wax' : 'Tenue ville';
+  }
+  if (edges.selfie) {
+    selfieUntil = performance.now() + 4800;
+    toast('Selfie.');
+  }
   if (edges.pause && !busting) {
     paused = !paused;
     document.getElementById('pause').classList.toggle('hidden', !paused);
@@ -297,6 +320,7 @@ function frame(now) {
   rig.addLook(look.x, look.y);
 
   if (edges.enter) {
+    selfieUntil = 0;
     if (player.vehicle) traffic.exit(player, city.collision);
     else {
       const near = traffic.nearestEnterable(player.pos);
@@ -400,7 +424,7 @@ function frame(now) {
   const face = player.vehicle ? player.vehicle.yaw : player.yaw;
   const moving = player.vehicle ? Math.abs(player.vehicle.speed) > 0.8 : player.moving;
   const dist = player.vehicle ? SPECS[player.vehicle.type].cam : 6.5;
-  rig.update(dt, focus, face, moving, dist, city.collision);
+  rig.update(dt, focus, face, moving, dist, city.collision, performance.now() < selfieUntil && !player.vehicle);
   const speedNow = player.vehicle ? Math.abs(player.vehicle.speed) : 0;
   const fov = 68 + Math.min(7, speedNow * 0.22);
   if (Math.abs(camera.fov - fov) > 0.15) {

@@ -602,7 +602,7 @@ function addLamps(scene, geoms, lampMat) {
 }
 
 function crowded(x, z) {
-  if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 7) return true;
+  if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 18) return true;
   for (const car of PARKED) {
     if (Math.hypot(x - car.x, z - car.z) < 5) return true;
   }

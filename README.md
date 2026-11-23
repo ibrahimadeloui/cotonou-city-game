@@ -52,6 +52,8 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 | Monter / descendre d'un véhicule | E |
 | Frein à main | Espace (en véhicule) |
 | Klaxon | H |
+| Selfie | C, ou le portrait en haut à gauche |
+| Changer de tenue | V, ou Tenue wax dans le menu pause |
 | Caméra | Glisser la souris |
 | Pause | Échap ou P |
 

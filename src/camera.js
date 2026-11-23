@@ -17,22 +17,31 @@ export function createCameraRig(camera) {
     snap() {
       state.snap = true;
     },
-    update(dt, target, faceYaw, moving, modeDist, collision) {
+    update(dt, target, faceYaw, moving, modeDist, collision, selfie) {
       state.drag -= dt;
-      if (state.drag <= 0 && moving) state.yaw = dampAngle(state.yaw, faceYaw, 2.6, dt);
-      state.dist = damp(state.dist, modeDist, 3, dt);
+      if (selfie && !state.wasSelfie) state.savedPitch = state.pitch;
+      if (!selfie && state.wasSelfie && state.savedPitch != null) state.pitch = state.savedPitch;
+      state.wasSelfie = selfie;
+      if (selfie) {
+        state.yaw = dampAngle(state.yaw, faceYaw + Math.PI, 5.5, dt);
+        state.pitch = damp(state.pitch, 0.16, 5, dt);
+      } else if (state.drag <= 0 && moving) {
+        state.yaw = dampAngle(state.yaw, faceYaw, 2.6, dt);
+      }
+      state.dist = damp(state.dist, selfie ? 2.35 : modeDist, selfie ? 5 : 3, dt);
       const dist = state.dist;
       const cp = Math.cos(state.pitch);
+      const lookHeight = selfie ? 1.5 : 1.25;
       desired.set(
         target.x - Math.sin(state.yaw) * cp * dist,
-        target.y + 1.2 + Math.sin(state.pitch) * dist * 0.72,
+        target.y + (selfie ? 1.15 : 1.2) + Math.sin(state.pitch) * dist * 0.72,
         target.z - Math.cos(state.yaw) * cp * dist,
       );
       pullCamera(target, desired, collision);
       look.set(
-        target.x + Math.sin(state.yaw) * 1.1,
-        target.y + 1.25,
-        target.z + Math.cos(state.yaw) * 1.1,
+        target.x + Math.sin(state.yaw) * (selfie ? 0.15 : 1.1),
+        target.y + lookHeight,
+        target.z + Math.cos(state.yaw) * (selfie ? 0.15 : 1.1),
       );
       if (state.snap) {
         camera.position.copy(desired);

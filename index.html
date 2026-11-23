@@ -17,12 +17,17 @@
     <div id="arrow" class="pick"></div>
     <div id="hud">
       <section id="top-left" class="panel">
-        <p class="eyebrow">Cotonou City</p>
-        <h2 id="player-name">Ibrahim</h2>
-        <p id="money">2&nbsp;500&nbsp;FCFA</p>
-        <p id="district">Route des Pêches</p>
-        <p id="jobs">Courses : 0</p>
-        <p id="clock">16:51</p>
+        <div id="who">
+          <div id="avatar" role="button" tabindex="-1" aria-label="Portrait d'Ibrahim. Appuyer pour un selfie."></div>
+          <div>
+            <p class="eyebrow">Cotonou City</p>
+            <h2 id="player-name">Ibrahim</h2>
+            <p id="money">2&nbsp;500&nbsp;FCFA</p>
+            <p id="district">Route des Pêches</p>
+            <p id="jobs">Courses : 0</p>
+            <p id="clock">16:51</p>
+          </div>
+        </div>
       </section>
       <section id="mission" class="panel">
         <p id="mission-kicker">Disponible</p>
@@ -82,7 +87,7 @@
         <ul class="controls mobile-controls">
           <li>Zone gauche : marcher. Pousse à fond pour courir, ou garde le bouton Courir.</li>
           <li>Monter / Sortir pour le SUV noir et les zemidjans jaunes. Klaxon et Pause à droite.</li>
-          <li>Glisse à droite de l'écran pour tourner la caméra.</li>
+          <li>Glisse à droite de l'écran pour tourner la caméra. Le portrait en haut à gauche lance un selfie.</li>
         </ul>
       </div>
     </div>
@@ -96,6 +101,7 @@
           <li>Les courses se prennent en ralentissant sur le marqueur.</li>
           <li>Renverser quelqu'un attire la police.</li>
         </ul>
+        <button type="button" id="btn-outfit">Tenue wax</button>
         <button type="button" id="resume">Reprendre</button>
       </div>
     </div>
