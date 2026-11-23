@@ -90,7 +90,7 @@ html, body {
   flex: none;
   border-radius: 50%;
   border: 2px solid var(--gold);
-  background: #8a5536 url('./assets/ibrahim-face.jpg') center 12% / 148% no-repeat;
+  background: #7c4e36 url('./assets/ibrahim-face.jpg') center 38% / 165% no-repeat;
   pointer-events: auto;
   cursor: pointer;
   touch-action: manipulation;

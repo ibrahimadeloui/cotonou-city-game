@@ -144,7 +144,7 @@ function waxTexture() {
 
 export function createIbrahim(shadows, faceUrl) {
   const g = new Group();
-  const skin = new MeshPhongMaterial({ color: 0x8a5536, shininess: 10, specular: 0x3a2014 });
+  const skin = new MeshPhongMaterial({ color: 0x7c4e36, shininess: 8, specular: 0x3a2014 });
   const hairM = new MeshLambertMaterial({ color: 0x16110e });
   const fadeM = new MeshLambertMaterial({ color: 0x3a2c24 });
   const pantsM = new MeshLambertMaterial({ color: 0x2c241c });
@@ -198,18 +198,14 @@ export function createIbrahim(shadows, faceUrl) {
   head.position.y = 1.48;
   const skull = new Mesh(new BoxGeometry(0.3, 0.34, 0.28), skin);
   skull.castShadow = shadows;
-  const face = new Mesh(new PlaneGeometry(0.29, 0.33), faceMat);
-  face.position.z = 0.145;
+  const face = new Mesh(new PlaneGeometry(0.3, 0.34), faceMat);
+  face.position.z = 0.142;
   const hairTop = new Mesh(new BoxGeometry(0.3, 0.06, 0.2), hairM);
   hairTop.position.set(0, 0.18, -0.04);
   const fade = new Mesh(new BoxGeometry(0.302, 0.08, 0.16), fadeM);
   fade.position.set(0, 0.1, -0.06);
-  const templeL = new Mesh(new BoxGeometry(0.012, 0.012, 0.14), hairM);
-  templeL.position.set(-0.15, 0.03, 0.02);
-  const templeR = templeL.clone();
-  templeR.position.x = 0.15;
 
-  head.add(skull, face, hairTop, fade, templeL, templeR);
+  head.add(skull, face, hairTop, fade);
   body.add(hips, torso, collar, armL, armR, head);
   g.add(body, legL, legR);
   g.userData.limbs = { legL, legR, armL, armR };
