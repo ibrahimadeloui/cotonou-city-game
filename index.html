@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#e07a3d" />
+    <meta name="description" content="Cotonou City — ville ouverte au bord de l'Atlantique. Incarne Ibrahim." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Cotonou City</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23143032'/%3E%3Cpath d='M8 40h48v6H8z' fill='%23f0c14a'/%3E%3Ccircle cx='18' cy='28' r='6' fill='%23008751'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23e8112d'/%3E%3Ccircle cx='46' cy='29' r='5' fill='%23fcd116'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="vignette"></div>
+    <div id="flash"></div>
+    <div id="arrow" class="pick"></div>
+    <div id="hud">
+      <section id="top-left" class="panel">
+        <p class="eyebrow">Cotonou City</p>
+        <h2 id="player-name">Ibrahim</h2>
+        <p id="money">2&nbsp;500&nbsp;FCFA</p>
+        <p id="district">Route des Pêches</p>
+        <p id="jobs">Courses : 0</p>
+        <p id="clock">16:51</p>
+      </section>
+      <section id="mission" class="panel">
+        <p id="mission-kicker">Disponible</p>
+        <p id="mission-body">Une course va s'afficher ici.</p>
+        <div id="mission-meta">
+          <span id="mission-pay"></span>
+          <span id="mission-dist"></span>
+        </div>
+      </section>
+      <section id="wanted" class="panel">
+        <p>Recherché</p>
+        <div id="stars">☆☆☆☆☆</div>
+      </section>
+      <p id="toast"></p>
+      <p id="radio"></p>
+      <p id="speed"></p>
+      <p id="prompt"></p>
+      <p id="hint">ZQSD / WASD marcher · Maj courir · E véhicule · Espace sauter / frein · H klaxon · souris caméra</p>
+      <div id="map-wrap">
+        <canvas id="minimap" width="180" height="180"></canvas>
+      </div>
+    </div>
+    <div id="touch">
+      <div id="joystick"><div id="stick"></div></div>
+      <div id="buttons">
+        <button type="button" id="btn-run">Courir</button>
+        <button type="button" id="btn-vehicle">Monter</button>
+        <button type="button" id="btn-horn">Klaxon</button>
+        <button type="button" id="btn-pause">Pause</button>
+      </div>
+    </div>
+    <div id="start" class="overlay">
+      <div class="card panel">
+        <p class="eyebrow">Bénin · Atlantique</p>
+        <h1>Cotonou City</h1>
+        <p class="lead">Ibrahim se réveille à Fidjrossè. Le soleil tombe sur le golfe, les zemidjans klaxonnent, et les courses se paient en francs CFA.</p>
+        <button type="button" class="primary" id="play">Entrer dans la ville</button>
+        <ul class="controls desktop-controls">
+          <li>ZQSD, WASD ou flèches — marcher</li>
+          <li>Maj — courir · Espace — sauter, ou frein à main en véhicule</li>
+          <li>E — monter ou descendre · H — klaxon</li>
+          <li>Souris glissée — caméra · Échap — pause</li>
+        </ul>
+        <ul class="controls mobile-controls">
+          <li>Joystick à gauche pour marcher. Pousse à fond pour courir, ou garde Courir.</li>
+          <li>Monter / Sortir pour le SUV noir et les zemidjans jaunes.</li>
+          <li>Glisse sur l'écran pour tourner la caméra.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="pause" class="overlay hidden">
+      <div class="card panel">
+        <p class="eyebrow">Pause</p>
+        <h2>Ibrahim s'arrête un instant.</h2>
+        <ul class="controls">
+          <li>Marche : ZQSD / WASD / joystick</li>
+          <li>Véhicule : E ou le bouton Monter</li>
+          <li>Les courses se prennent en ralentissant sur le marqueur.</li>
+          <li>Renverser quelqu'un attire la police.</li>
+        </ul>
+        <button type="button" id="resume">Reprendre</button>
+      </div>
+    </div>
+    <div id="bust" class="overlay hidden">
+      <div class="card panel danger">
+        <h2>Interpellé</h2>
+        <p id="bust-text"></p>
+        <p>Ibrahim est relâché à Fidjrossè.</p>
+      </div>
+    </div>
+    <div id="loader">Chargement de Cotonou…</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
