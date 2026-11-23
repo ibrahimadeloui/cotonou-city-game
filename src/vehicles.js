@@ -302,7 +302,7 @@ export function createTraffic(scene, graph, quality, rand) {
     if (!vehicle) return;
     const spot = exitSpot(vehicle, collision);
     scene.add(player.mesh);
-    player.mesh.scale.setScalar(1.08);
+    player.mesh.scale.setScalar(1);
     player.pos.x = spot.x;
     player.pos.z = spot.z;
     player.pos.y = 0;

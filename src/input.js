@@ -16,12 +16,15 @@ export function createInput() {
   let hornQueued = false;
   let pauseQueued = false;
   let jumpQueued = false;
+  let selfieQueued = false;
+  let outfitQueued = false;
   let lookDx = 0;
   let lookDy = 0;
 
   const actions = {
     play: null,
     resume: null,
+    outfit: null,
   };
 
   const joystick = document.getElementById('joystick');
@@ -53,6 +56,8 @@ export function createInput() {
     runHeld = false;
     lookDx = 0;
     lookDy = 0;
+    selfieQueued = false;
+    outfitQueued = false;
     resetStickVisual();
     for (const button of Object.values(buttons)) button.classList.remove('held');
     playBtn.classList.remove('held');
@@ -75,9 +80,9 @@ export function createInput() {
     const code = event.code || '';
     const key = (event.key || '').toLowerCase();
     return (
-      ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyQ', 'KeyE', 'KeyH', 'KeyP', 'Space', 'Escape',
+      ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyQ', 'KeyE', 'KeyH', 'KeyP', 'KeyC', 'KeyV', 'Space', 'Escape',
         'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(code)
-      || ['w', 'a', 's', 'd', 'z', 'q', 'e', 'h', 'p', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)
+      || ['w', 'a', 's', 'd', 'z', 'q', 'e', 'h', 'p', 'c', 'v', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)
     );
   }
 
@@ -93,6 +98,8 @@ export function createInput() {
     if (code === 'KeyH' || key === 'h') hornQueued = true;
     if (code === 'Space' || key === ' ') jumpQueued = true;
     if (code === 'Escape' || code === 'KeyP' || key === 'p' || key === 'escape') pauseQueued = true;
+    if (code === 'KeyC' || key === 'c') selfieQueued = true;
+    if (code === 'KeyV' || key === 'v') outfitQueued = true;
   });
 
   window.addEventListener('keyup', (event) => {
@@ -176,6 +183,8 @@ export function createInput() {
     if (target.closest('#resume')) return 'resume';
     if (target.closest('#joystick')) return 'joy';
     if (target.closest('#joy-pad')) return 'joy-pad';
+    if (target.closest('#avatar')) return 'selfie';
+    if (target.closest('#btn-outfit')) return 'outfit';
     return null;
   }
 
@@ -206,6 +215,8 @@ export function createInput() {
     if (kind === 'pause') pauseQueued = true;
     if (kind === 'play') actions.play?.();
     if (kind === 'resume') actions.resume?.();
+    if (kind === 'selfie') selfieQueued = true;
+    if (kind === 'outfit') outfitQueued = true;
   }, { passive: false });
 
   window.addEventListener('pointermove', (event) => {
@@ -233,7 +244,7 @@ export function createInput() {
 
   window.addEventListener('contextmenu', (event) => event.preventDefault());
 
-  for (const button of [...Object.values(buttons), playBtn, resumeBtn]) {
+  for (const button of [...Object.values(buttons), playBtn, resumeBtn, document.getElementById('btn-outfit')]) {
     button.addEventListener('keydown', (event) => event.preventDefault());
   }
 
@@ -241,6 +252,7 @@ export function createInput() {
     setActions(next) {
       actions.play = next.play;
       actions.resume = next.resume;
+      actions.outfit = next.outfit || null;
     },
     sample() {
       const forward = (has(['KeyW', 'ArrowUp'], ['w', 'z', 'arrowup']) ? 1 : 0)
@@ -270,11 +282,15 @@ export function createInput() {
         horn: hornQueued,
         pause: pauseQueued,
         jump: jumpQueued,
+        selfie: selfieQueued,
+        outfit: outfitQueued,
       };
       enterQueued = false;
       hornQueued = false;
       pauseQueued = false;
       jumpQueued = false;
+      selfieQueued = false;
+      outfitQueued = false;
       return edges;
     },
     consumeLook() {
