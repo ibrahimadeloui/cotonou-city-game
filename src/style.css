@@ -417,6 +417,7 @@ html, body {
   background: rgba(255, 248, 236, 0.96);
   color: var(--ink);
   touch-action: none;
+  transition: transform 40ms linear, background-color 40ms linear;
   font: inherit;
   font-size: 15px;
   font-weight: 800;
@@ -507,20 +508,23 @@ label.bright {
   background: linear-gradient(90deg, rgba(10, 14, 22, 0.88) 0%, rgba(10, 14, 22, 0.45) 46%, rgba(10, 14, 22, 0) 72%);
 }
 
-#start .card, #pause .card, #bust .card, #brief .card {
+#start .card, #pause .card, #bust .card, #brief .card, #result .card {
   pointer-events: auto;
   margin-left: calc(28px + env(safe-area-inset-left));
   width: min(460px, calc(100% - 40px));
   padding: 28px 28px 22px;
 }
 
-#pause, #bust, #brief {
+#pause, #bust, #brief, #result {
   z-index: 40;
   justify-content: center;
   background: rgba(8, 10, 16, 0.45);
 }
 
-#pause .card, #bust .card, #brief .card { margin: 0; }
+#pause .card, #bust .card, #brief .card, #result .card { margin: 0; }
+
+#wanted.blink { animation: blink 0.45s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.35; } }
 
 h1 {
   margin: 6px 0 8px;

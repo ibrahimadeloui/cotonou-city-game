@@ -57,6 +57,7 @@ export function createUi() {
       const stars = `${'★'.repeat(game.wanted)}${'☆'.repeat(5 - game.wanted)}`;
       setText('stars', stars);
       wantedEl.classList.toggle('on', game.wanted > 0);
+      wantedEl.classList.toggle('blink', Boolean(game.escaping));
 
       const vehicle = game.player.vehicle;
       if (vehicle) {
@@ -193,6 +194,28 @@ function drawMap(ctx, w, h, game) {
     const p = world(vehicle.pos.x, vehicle.pos.z, w, h);
     ctx.fillStyle = '#2f6fed';
     ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+
+  if (game.search?.show) {
+    const c = world(game.search.x, game.search.z, w, h);
+    const edge = world(game.search.x + game.search.r, game.search.z, w, h);
+    const rad = Math.max(4, Math.hypot(edge.x - c.x, edge.y - c.y));
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, rad, 0, Math.PI * 2);
+    ctx.strokeStyle = game.escaping ? 'rgba(255, 196, 64, 0.95)' : 'rgba(220, 50, 50, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  if (game.route && game.route.length > 1) {
+    ctx.beginPath();
+    for (let i = 0; i < game.route.length; i += 1) {
+      const p = world(game.route[i].x, game.route[i].z, w, h);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = '#e23d3d';
+    ctx.lineWidth = 3;
+    ctx.stroke();
   }
 
   const mission = game.missions.state.active;

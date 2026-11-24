@@ -12,6 +12,7 @@ import { createAudio } from './audio.js';
 import { createCameraRig } from './camera.js';
 import {
   CYCLE_SECONDS,
+  COMMISSARIAT,
   SPAWN,
   SPECS,
   START_MONEY,
@@ -19,10 +20,12 @@ import {
   hourFromCycle,
 } from './config.js';
 import { createCity } from './city.js';
+import { createGps } from './gps.js';
 import { createInput } from './input.js';
 import { createLighting } from './lighting.js';
 import { beginCombat, resolveCombat } from './combat.js';
 import { createMissions } from './missions.js';
+import { createPolice } from './police.js';
 import { setupPwa } from './pwa.js';
 import { createStory } from './story.js';
 import { createVoices } from './voices.js';
@@ -122,6 +125,8 @@ const densityButton = document.getElementById('btn-density');
 if (densityButton) densityButton.textContent = DENSITIES[densityIndex].label;
 const missions = createMissions(scene);
 const story = createStory(missions);
+const gps = createGps(scene);
+const policeForce = createPolice(scene);
 const voices = createVoices();
 const input = createInput();
 input.setActions({
@@ -174,9 +179,13 @@ const game = {
   toast: '',
   toastUntil: 0,
   radio: RADIO[0],
+  search: policeForce.search,
+  route: gps.route,
+  escaping: false,
 };
 
 let cycle = 0.2;
+const fps = { t: 0, n: 0, level: 1, hide: 140 };
 let started = false;
 let paused = false;
 let busting = false;
@@ -208,6 +217,14 @@ if (story.save) missions.state.jobs = story.save.jobs;
 document.getElementById('brief-go')?.addEventListener('click', () => {
   story.begin();
   note('brief');
+});
+document.getElementById('result-ok')?.addEventListener('click', () => {
+  story.accept();
+  note('result');
+});
+document.getElementById('result-retry')?.addEventListener('click', () => {
+  story.retry();
+  note('retry');
 });
 document.getElementById('brightness')?.addEventListener('input', (event) => {
   applyBrightness(event.target.value);
@@ -274,7 +291,7 @@ function pushOutOfCars() {
 }
 
 function syncPolice() {
-  const target = game.wanted >= 4 ? 2 : game.wanted > 0 ? 1 : 0;
+  const target = Math.min(3, game.wanted);
   const cops = traffic.list.filter((vehicle) => vehicle.police && !vehicle.dead);
   if (game.wanted === 0) {
     for (const cop of cops) cop.leaving = true;
@@ -298,8 +315,8 @@ function startBust() {
     traffic.list.splice(i, 1);
   }
   const text = bustFine > 0
-    ? `Amende de ${formatFCFA(bustFine)}. La police te lâche sur la plage.`
-    : 'Pas de quoi payer l\'amende. La police te lâche quand même.';
+    ? `Arrêté. Amende de ${formatFCFA(bustFine)}. Direction le commissariat.`
+    : 'Arrêté. Pas de quoi payer. Le commissariat te relâche.';
   document.getElementById('bust-text').textContent = text;
   document.getElementById('bust').classList.remove('hidden');
   audio.blip('bad');
@@ -307,18 +324,18 @@ function startBust() {
 
 function finishBust() {
   if (player.vehicle) traffic.exit(player, city.collision);
-  player.pos.x = SPAWN.x;
+  player.pos.x = COMMISSARIAT.x;
   player.pos.y = 0;
-  player.pos.z = SPAWN.z;
-  player.yaw = SPAWN.yaw;
+  player.pos.z = COMMISSARIAT.z;
+  player.yaw = COMMISSARIAT.yaw;
   player.vy = 0;
-  player.mesh.position.set(SPAWN.x, 0, SPAWN.z);
-  player.mesh.rotation.set(0, SPAWN.yaw, 0);
-  rig.state.yaw = SPAWN.yaw;
+  player.mesh.position.set(COMMISSARIAT.x, 0, COMMISSARIAT.z);
+  player.mesh.rotation.set(0, COMMISSARIAT.yaw, 0);
+  rig.state.yaw = COMMISSARIAT.yaw;
   rig.snap();
   busting = false;
   document.getElementById('bust').classList.add('hidden');
-  toast('Ibrahim est relâché à Fidjrossè.');
+  toast('Ibrahim sort du commissariat.');
   story.afterBust();
   story.persist(game.money, missions.state.jobs);
 }
@@ -433,7 +450,50 @@ window.__cotonou = {
     player.mesh.position.set(x, 0, z);
     player.mesh.rotation.y = yaw;
   },
+  missionKind() { return story.current()?.kind || ''; },
+  missionVehicle() { return story.current()?.vehicle || ''; },
+  knockBoss() { return story.knockBoss(); },
+  setStars(n) { game.wanted = n; },
+  enterType(type) {
+    let best = null;
+    let bestD = Infinity;
+    for (const vehicle of traffic.list) {
+      if (vehicle.type !== type || vehicle.police || vehicle.controlled || vehicle.dead) continue;
+      const d = Math.hypot(vehicle.pos.x - player.pos.x, vehicle.pos.z - player.pos.z);
+      if (d < bestD) {
+        best = vehicle;
+        bestD = d;
+      }
+    }
+    if (!best) return false;
+    this.stand(best.pos.x + 1.6, best.pos.z, best.yaw || 0);
+    traffic.enter(player, best);
+    if (player.vehicle) player.vehicle.speed = 0;
+    return Boolean(player.vehicle);
+  },
+  gotoGoal() {
+    const goal = missions.target();
+    if (!goal) return false;
+    if (player.vehicle) {
+      player.vehicle.pos.x = goal.x;
+      player.vehicle.pos.z = goal.z;
+      player.vehicle.speed = 0;
+      player.pos.x = goal.x;
+      player.pos.z = goal.z;
+      return true;
+    }
+    this.stand(goal.x, goal.z, 0);
+    return true;
+  },
 };
+
+function tuneQuality(level) {
+  fps.level = level;
+  const cap = level <= 0 ? 1 : level === 1 ? 1.25 : 1.5;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
+  peds.density = level <= 0 ? 0.45 : 1;
+  fps.hide = level <= 0 ? 70 : level === 1 ? 120 : 170;
+}
 
 function frame(now) {
   const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));
@@ -488,6 +548,15 @@ function frame(now) {
     return;
   }
 
+  fps.t += dt;
+  fps.n += 1;
+  if (fps.t >= 1.4) {
+    const rate = fps.n / fps.t;
+    fps.t = 0;
+    fps.n = 0;
+    if (rate < 50 && fps.level > 0) tuneQuality(fps.level - 1);
+    else if (rate > 58 && fps.level < 2) tuneQuality(fps.level + 1);
+  }
   cycle = (cycle + dt / CYCLE_SECONDS) % 1;
   game.hour = hourFromCycle(cycle);
   rig.addLook(look.x, look.y);
@@ -504,6 +573,7 @@ function frame(now) {
       const near = traffic.nearestEnterable(player.pos);
       if (near) {
         traffic.enter(player, near);
+        policeForce.slip(3.5);
         note('enter');
       }
     }
@@ -536,7 +606,7 @@ function frame(now) {
       if (other?.police) addWanted('Tu as percuté la police.');
       else if (speed > 9) addWanted(other ? 'Accident. Des témoins ont appelé la police.' : 'Tu as embouti quelque chose.');
     },
-  });
+  }, { x: camera.position.x, z: camera.position.z, hide: fps.hide });
   if (player.vehicle) {
     player.pos.x = player.vehicle.pos.x;
     player.pos.z = player.vehicle.pos.z;
@@ -559,6 +629,8 @@ function frame(now) {
   });
   voices.tick(dt, player, peds);
   if (!story.done()) story.update(dt, player, peds);
+  gps.update(player, missions.target());
+  game.route = gps.route;
 
   bumpCool = Math.max(0, bumpCool - dt);
   if (!player.vehicle) {
@@ -599,14 +671,9 @@ function frame(now) {
     },
   });
 
-  if (game.wanted > 0) {
-    wantedCool += dt;
-    if (wantedCool > 18) {
-      game.wanted -= 1;
-      wantedCool = 0;
-      if (game.wanted === 0) toast('La police te perd de vue.');
-    }
-  }
+  const policeEvent = policeForce.update(dt, game, traffic);
+  if (policeEvent === 'clear') toast('Tu sors de la zone. La police te perd de vue.');
+  if (policeEvent === 'caught') bustTimer = 2;
   syncPolice();
 
   let bustClose = false;

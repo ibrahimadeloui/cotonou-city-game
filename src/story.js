@@ -25,6 +25,10 @@ function spot(id) {
   return PLACES.find((place) => place.id === id);
 }
 
+function stepsOf(current) {
+  return current.steps || [current.place];
+}
+
 export function createStory(missions) {
   const save = loadSave();
   let index = save?.story ?? 0;
@@ -34,8 +38,20 @@ export function createStory(missions) {
   let timer = 0;
   let busted = false;
   let boss = null;
+  let step = 0;
+  let resultMode = null;
+  let pendingPay = 0;
   let wantedArmed = false;
   let nag = 0;
+  function showResult(mode, title, text) {
+    resultMode = mode;
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-text').textContent = text;
+    document.getElementById('result-ok').hidden = mode !== 'ok';
+    document.getElementById('result-retry').hidden = mode !== 'fail';
+    document.getElementById('result').classList.remove('hidden');
+  }
+
   const hooks = {
     toast() {},
     say() {},
@@ -50,12 +66,14 @@ export function createStory(missions) {
 
   function pin(extra = {}) {
     const current = mission();
-    const place = spot(current.place);
-    const body = current.kind === 'protect'
-      ? `${current.body} ${Math.ceil(Math.max(0, current.hold - held))} s`
-      : current.limit
-        ? `${current.body} ${Math.ceil(Math.max(0, timer))} s`
-        : current.body;
+    const steps = stepsOf(current);
+    const place = spot(steps[Math.min(step, steps.length - 1)]);
+    const holdNeed = (typeof window !== 'undefined' && window.__cotonouFast) ? 0.35 : (current.hold || 0);
+    const stepLabel = `Étape ${Math.min(step, steps.length - 1) + 1}/${steps.length}`;
+    let body = `${stepLabel} — ${current.body}`;
+    if (current.kind === 'protect') body = `${stepLabel} — reste sur place, ${Math.ceil(Math.max(0, holdNeed - held))} s`;
+    else if (current.vehicle && !extra.vehicleOk) body = `${stepLabel} — monte dans ${current.vehicle === 'zem' ? 'un zemidjan' : 'le SUV'}, puis suis la flèche`;
+    else if (current.limit) body = `${stepLabel} — suis la flèche, ${Math.ceil(Math.max(0, timer))} s`;
     missions.lock({
       story: true,
       storyTitle: current.title,
@@ -82,24 +100,50 @@ export function createStory(missions) {
     document.getElementById('brief').classList.remove('hidden');
   }
 
-  function complete() {
+  function succeed() {
     const current = mission();
     running = false;
     boss = null;
     wantedArmed = false;
-    missions.unlock();
-    index += 1;
-    hooks.reward(current.pay);
-    hooks.persist();
-    hooks.toast(`Mission réussie. ${current.pay.toLocaleString('fr-FR')} FCFA.`);
-    if (index < STORY.length) openBrief();
-    else hooks.toast('Les huit missions sont faites. Les courses libres reprennent.');
+    pendingPay = current.pay;
+    showResult('ok', 'Mission réussie', `${current.title}. Tu gagnes ${current.pay.toLocaleString('fr-FR')} FCFA.`);
+  }
+
+  function fail(text) {
+    running = false;
+    showResult('fail', 'Mission ratée', text);
   }
 
   return {
     save,
     length: STORY.length,
-    holding() { return briefing; },
+    holding() { return briefing || resultMode !== null; },
+    current() { return mission(); },
+    knockBoss() {
+      if (!boss) return false;
+      boss.hp = 0;
+      boss.down = true;
+      return true;
+    },
+    accept() {
+      if (resultMode !== 'ok') return;
+      const pay = pendingPay;
+      pendingPay = 0;
+      resultMode = null;
+      document.getElementById('result').classList.add('hidden');
+      missions.unlock();
+      index += 1;
+      step = 0;
+      hooks.reward(pay);
+      hooks.persist();
+      if (index < STORY.length) openBrief();
+      else hooks.toast('Les huit missions sont faites. Les courses libres reprennent.');
+    },
+    retry() {
+      resultMode = null;
+      document.getElementById('result').classList.add('hidden');
+      this.begin();
+    },
     done() { return index >= STORY.length; },
     setHooks(next) { Object.assign(hooks, next); },
     openBrief,
@@ -110,6 +154,7 @@ export function createStory(missions) {
       document.getElementById('brief').classList.add('hidden');
       running = true;
       held = 0;
+      step = 0;
       timer = current.limit || 0;
       busted = false;
       boss = null;
@@ -138,36 +183,40 @@ export function createStory(missions) {
     },
     update(dt, player, peds) {
       const current = mission();
-      if (!running || !current || briefing) return;
-      const place = spot(current.place);
+      if (!running || !current || briefing || resultMode) return;
+      const steps = stepsOf(current);
+      const place = spot(steps[Math.min(step, steps.length - 1)]);
       const dist = Math.hypot(player.pos.x - place.x, player.pos.z - place.z);
-      const speed = player.vehicle ? Math.abs(player.vehicle.speed) : player.speed;
+      const speed = player.vehicle ? Math.abs(player.vehicle.speed) : 0;
+      const vehicleOk = !current.vehicle || player.vehicle?.type === current.vehicle;
       nag = Math.max(0, nag - dt);
+      const holdNeed = (typeof window !== 'undefined' && window.__cotonouFast) ? 0.35 : (current.hold || 0);
       if (current.kind === 'protect' && dist < 16) held += dt;
       if (current.limit) {
         timer = Math.max(0, timer - dt);
         if (timer <= 0) {
-          timer = current.limit;
-          hooks.toast('Trop tard. Le chrono repart.');
-          if (current.kind === 'escape') hooks.setWanted(3);
+          fail('Le temps est écoulé. Tu peux réessayer.');
+          return;
         }
       }
       if (current.kind === 'convoy' && missions.state.active?.dirty) {
         missions.state.active.dirty = false;
-        hooks.toast('Choc sur le convoi. Reprends la route du port, doucement.');
+        fail('Le convoi a pris un choc. Reprends depuis le début.');
+        return;
       }
-      pin();
-      if (current.kind === 'reach' || current.kind === 'convoy') {
-        const vehicleOk = !current.vehicle || player.vehicle?.type === current.vehicle;
-        if (dist < 8 && speed < 8 && vehicleOk) complete();
-        else if (dist < 8 && current.vehicle && !vehicleOk && nag <= 0) {
+      pin({ vehicleOk });
+      if (current.kind === 'reach' || current.kind === 'convoy' || current.kind === 'escape') {
+        if (dist < 8 && (speed < 8 || !player.vehicle) && vehicleOk) {
+          if (step < steps.length - 1) {
+            step += 1;
+            hooks.toast('Point de passage atteint. Continue.');
+          } else succeed();
+        } else if (dist < 8 && current.vehicle && !vehicleOk && nag <= 0) {
           nag = 4;
           hooks.toast(current.vehicle === 'zem' ? 'Il te faut un zemidjan.' : 'Il te faut le SUV.');
         }
       } else if (current.kind === 'protect') {
-        if (held >= current.hold) complete();
-      } else if (current.kind === 'escape') {
-        if (dist < 8) complete();
+        if (held >= holdNeed) succeed();
       } else if (current.kind === 'fight') {
         if (!boss) {
           let best = null;
@@ -189,7 +238,7 @@ export function createStory(missions) {
             boss.name = current.bossName;
           }
         } else if (boss.down || boss.hp <= 0) {
-          complete();
+          succeed();
         }
       }
     },

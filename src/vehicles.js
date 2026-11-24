@@ -406,7 +406,7 @@ function drivePlayer(vehicle, dt, input, collision, onCrash) {
     const boost = clamp(Math.abs(speed) / 4.5, 0.25, 1);
     vehicle.yaw += steer * spec.turn * boost * sign * dt;
     const target = throttle > 0.05 ? spec.max * throttle : throttle < -0.05 ? -spec.reverse * -throttle : 0;
-    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 3.4 : 1.8) : (vehicle.type === 'zem' ? 1.4 : 0.55);
+    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 7 : 5.4) : (vehicle.type === 'zem' ? 3.2 : 2.4);
     speed = damp(speed, target, response, dt);
   }
   vehicle.steerVisual = steer;
@@ -442,11 +442,11 @@ function driveAI(vehicle, dt, player, list, collision) {
     vehicle.dead = true;
     return;
   }
-  if (vehicle.police && !vehicle.leaving && dist < 30) {
+  if (vehicle.police && !vehicle.leaving && dist < 72) {
     vehicle.offroad = true;
     const desired = Math.atan2(targetPos.x - vehicle.pos.x, targetPos.z - vehicle.pos.z);
-    vehicle.yaw = dampAngleSafe(vehicle.yaw, desired, 4.2, dt);
-    vehicle.speed = damp(vehicle.speed, 18, 2, dt);
+    vehicle.yaw = dampAngleSafe(vehicle.yaw, desired, 8, dt);
+    vehicle.speed = damp(vehicle.speed, 22, 3.4, dt);
     let nx = vehicle.pos.x + Math.sin(vehicle.yaw) * vehicle.speed * dt;
     let nz = vehicle.pos.z + Math.cos(vehicle.yaw) * vehicle.speed * dt;
     const resolved = resolveCircle(nx, nz, vehicle.radius, collision);
@@ -560,7 +560,7 @@ function separatePlayer(vehicle, list, onCrash) {
   }
 }
 
-export function updateVehicles(bundle, dt, input, player, collision, nightHead, hooks) {
+export function updateVehicles(bundle, dt, input, player, collision, nightHead, hooks, view) {
   const { list } = bundle;
   sirenTime += dt;
   if (barMat) {
@@ -588,7 +588,12 @@ export function updateVehicles(bundle, dt, input, player, collision, nightHead, 
         vehicle.pos.z = bounded.z;
       }
     }
-    syncVisual(vehicle, dt, nightHead);
+    const dx = vehicle.pos.x - (view?.x ?? player.pos.x);
+    const dz = vehicle.pos.z - (view?.z ?? player.pos.z);
+    const hide = view?.hide ?? 150;
+    const far = !vehicle.controlled && (dx * dx + dz * dz) > hide * hide;
+    vehicle.mesh.visible = !far;
+    if (!far) syncVisual(vehicle, dt, nightHead);
   }
   if (player.vehicle) {
     separatePlayer(player.vehicle, list, hooks.onCrash);

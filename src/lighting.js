@@ -96,7 +96,7 @@ export function createLighting(scene, refs, quality) {
   sun.position.set(-40, 30, -20);
   if (quality.shadows) {
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(512, 512);
     sun.shadow.camera.near = 4;
     sun.shadow.camera.far = 180;
     const span = 58;

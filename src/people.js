@@ -239,7 +239,7 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
     const speed = run ? RUN_SPEED : WALK_SPEED;
     const water = player.pos.z < 16 ? 0.55 : 1;
     player.idle = 0;
-    player.yaw = dampAngle(player.yaw, Math.atan2(mx, mz), 10, dt);
+    player.yaw = dampAngle(player.yaw, Math.atan2(mx, mz), 22, dt);
     const swing = (player.attackT || 0) > 0 ? 0.25 : 1;
     player.pos.x += mx * speed * water * swing * dt;
     player.pos.z += mz * speed * water * swing * dt;
