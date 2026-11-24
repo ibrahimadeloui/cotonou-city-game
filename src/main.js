@@ -80,7 +80,7 @@ let renderer = new WebGLRenderer({
 });
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.toneMapping = ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.25;
+renderer.toneMappingExposure = 0.85;
 let rendererBackend = 'webgl2';
 const pmrem = new PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -90,14 +90,12 @@ pmrem.dispose();
 let post = null;
 
 function present() {
-  const heavy = quality.tier === 'haute'
-    || (!quality.mobile && (quality.tier === 'moyenne' || quality.tier === 'basse'));
-  if (!heavy || quality.post === 'off' || rendererBackend === 'webgpu') {
-    if (rendererBackend === 'webgpu' && quality.tier !== 'basse' && quality.post !== 'off') {
-      renderWebGPUPost();
-      return;
-    }
+  if (quality.post === 'off') {
     renderer.render(scene, camera);
+    return;
+  }
+  if (rendererBackend === 'webgpu') {
+    renderWebGPUPost();
     return;
   }
   try {
@@ -203,15 +201,15 @@ document.getElementById('app').appendChild(renderer.domElement);
 const lighting = createLighting(scene, refs, quality);
 
 function loadBrightness() {
-  const saved = Number(localStorage.getItem('cotonou-brightness'));
-  return Number.isFinite(saved) && saved >= 0.65 && saved <= 1.8 ? saved : 1.25;
+  const saved = Number(localStorage.getItem('cotonou-brightness-v2'));
+  return Number.isFinite(saved) && saved >= 0.55 && saved <= 1.6 ? saved : 0.85;
 }
 
 function applyBrightness(value) {
-  const next = Math.min(1.8, Math.max(0.65, Number(value) || 1.25));
+  const next = Math.min(1.6, Math.max(0.55, Number(value) || 0.85));
   renderer.toneMappingExposure = next;
   refs.brightness = next;
-  localStorage.setItem('cotonou-brightness', String(next));
+  localStorage.setItem('cotonou-brightness-v2', String(next));
   return next;
 }
 
@@ -609,6 +607,8 @@ window.__cotonou = {
   get tier() { return quality.tier; },
   get fps() { return fps.last || 0; },
   get rendererKind() { return rendererBackend; },
+  get playerModel() { return ibrahim.userData.sourceUrl || ''; },
+  get playerMeshName() { return ibrahim.userData.meshName || ''; },
   nearest() {
     let best = null;
     let bestD = Infinity;

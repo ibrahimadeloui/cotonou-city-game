@@ -232,29 +232,47 @@ async function exists(url) {
   }
 }
 
+function modelBase() {
+  const base = import.meta.env.BASE_URL || './';
+  return `${base}models/characters/`;
+}
+
 export async function loadCast(quality) {
   if (MeshoptDecoder.ready) await MeshoptDecoder.ready;
-  const base = './models/characters/';
+  const base = modelBase();
   const phone = quality.tier !== 'haute';
-  const dropIn = await exists('./models/ibrahim.glb');
+  const dropInUrl = `${import.meta.env.BASE_URL || './'}models/ibrahim.glb`;
+  const dropIn = await exists(dropInUrl);
   const playerUrl = dropIn
-    ? './models/ibrahim.glb'
+    ? dropInUrl
     : `${base}${phone ? 'ibrahim_1k.glb' : 'ibrahim.glb'}`;
-  const player = await loadHumanGltf(playerUrl);
-  const playerLod = await loadHumanGltf(`${base}lod/ibrahim_lod.glb`);
-  const types = [];
-  for (const id of CAST) {
-    if (quality.tier === 'basse') {
-      types.push({ id, full: await loadHumanGltf(`${base}lod/${id}_lod.glb`), lod: null });
-    } else {
-      types.push({
-        id,
-        full: await loadHumanGltf(`${base}${id}.glb`),
-        lod: await loadHumanGltf(`${base}lod/${id}_lod.glb`),
-      });
+  try {
+    const player = await loadHumanGltf(playerUrl);
+    player.userData.sourceUrl = playerUrl;
+    const playerLod = await loadHumanGltf(`${base}lod/ibrahim_lod.glb`);
+    const types = [];
+    for (const id of CAST) {
+      if (quality.tier === 'basse') {
+        const full = await loadHumanGltf(`${base}lod/${id}_lod.glb`);
+        full.userData.sourceUrl = `${base}lod/${id}_lod.glb`;
+        types.push({ id, full, lod: null });
+      } else {
+        const full = await loadHumanGltf(`${base}${id}.glb`);
+        const lod = await loadHumanGltf(`${base}lod/${id}_lod.glb`);
+        full.userData.sourceUrl = `${base}${id}.glb`;
+        types.push({ id, full, lod });
+      }
     }
+    return { player, playerLod, types, playerUrl };
+  } catch (error) {
+    const loaderEl = document.getElementById('loader');
+    if (loaderEl) {
+      loaderEl.classList.remove('hidden');
+      loaderEl.textContent = `Personnage réaliste introuvable (${playerUrl}). ${error?.message || error}`;
+    }
+    console.error(error);
+    throw error;
   }
-  return { player, playerLod, types };
 }
 
 function bindAnimations(root, model, gltf) {
@@ -279,6 +297,7 @@ function bindAnimations(root, model, gltf) {
     kick.timeScale = 1.28;
     actions.Kick = kick;
   }
+  if (!actions.Idle) throw new Error('Animation Idle absente du modèle');
   actions.Idle.play();
   root.userData.mixer = mixer;
   root.userData.actions = actions;
@@ -334,6 +353,9 @@ export function createRiggedCharacter(gltf, { shadows = false } = {}) {
   root.add(inner);
   bindAnimations(root, model, gltf);
   root.userData.setOutfit = () => {};
+  root.userData.sourceUrl = gltf.userData?.sourceUrl || '';
+  const skinned = model.getObjectByProperty('isSkinnedMesh', true);
+  root.userData.meshName = skinned?.name || '';
   return root;
 }
 
@@ -349,6 +371,8 @@ export function createActor(full, lod, options = {}) {
     far.userData.tickAnim(mode, dt);
   };
   root.userData.setOutfit = (wax) => near.userData.setOutfit?.(wax);
+  root.userData.sourceUrl = full.userData?.sourceUrl || near.userData.sourceUrl || '';
+  root.userData.meshName = near.userData.meshName || '';
   root.userData.updateDistance = (dist) => {
     const useFar = dist > 25;
     near.visible = !useFar;
