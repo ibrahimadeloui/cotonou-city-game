@@ -110,7 +110,7 @@ export function createCity(scene, refs, quality) {
   ground.rotateX(-Math.PI / 2);
   ground.translate(0, 0, 8 + depth / 2);
   scaleUv(ground, 560 / 3.2, depth / 3.2);
-  geoms.push(paint(ground, 0xe6d3a6));
+  geoms.push(paint(ground, 0xa78462));
   geoms.push(coloredBox(560, 0.025, 14, 0, 0.012, 15, 0xd2b48c));
 
   addRoads(geoms);
@@ -281,7 +281,7 @@ function buildPaths() {
 }
 
 function addRoads(geoms) {
-  const asphalt = 0x6d7684;
+  const asphalt = 0x3a424e;
   const walk = 0xd9d0c3;
   for (const x of ROAD_XS) {
     for (const z of ROAD_ZS) {

@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   plugins: [
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'Cotonou City',
@@ -24,11 +24,23 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: false,
+        skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,glb,wav,woff2,hdr}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,webp,glb,wav,woff2,hdr}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: 'index.html',
+        runtimeCaching: [
+          {
+            urlPattern: /models\/.*\.glb$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'cotonou-models-v3',
+              networkTimeoutSeconds: 8,
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 14 },
+            },
+          },
+        ],
       },
     }),
   ],

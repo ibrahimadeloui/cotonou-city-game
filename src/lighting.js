@@ -15,8 +15,8 @@ const KEYS = [
   key(0, '#243e6e', '#4d6ea3', '#2c446c', '#d5e4ff', '#9eb4d8', '#6d5b48', 0.62, 0.95, [0.2, 0.86, 0.2], 1, 0.75),
   key(5.5, '#4e86c4', '#ffd0a4', '#ffe0c0', '#ffe6c4', '#f2c8a4', '#8a6848', 1.15, 0.95, [0.55, 0.62, -0.18], 0.4, 0.2),
   key(7.5, '#6ec4f4', '#fff3d8', '#ffe8c4', '#fff6e0', '#fff1d6', '#c4a574', 2.05, 1.12, [0.7, 0.58, -0.18], 0.04, 0),
-  key(10, '#8ad4ff', '#fffaf0', '#fff3dc', '#fffdf6', '#fff6e8', '#d8bc90', 2.45, 1.22, [0.28, 0.9, -0.16], 0, 0),
-  key(13, '#7ecbff', '#fffef8', '#fff8ea', '#ffffff', '#fffaf2', '#e0c8a0', 2.55, 1.25, [0.02, 0.99, -0.1], 0, 0),
+  key(10, '#5eb6ee', '#d7e7f6', '#c5d4e6', '#fff4df', '#d5e4f2', '#8d7358', 1.35, 0.62, [0.28, 0.9, -0.16], 0, 0),
+  key(13, '#4ea8e6', '#e7eef6', '#d5e0ec', '#fff7ea', '#dde6f0', '#9a8068', 1.42, 0.66, [0.02, 0.99, -0.1], 0, 0),
   key(16.4, '#ff8ec8', '#ff7a4a', '#ffd0a8', '#ffe0b0', '#ffc0d0', '#c48a6a', 2.05, 1.05, [-0.28, 0.62, -0.22], 0.08, 0.08),
   key(17.6, '#d24ad8', '#ff5c6a', '#7a3c9a', '#ffb0c8', '#e090c0', '#a07068', 1.65, 0.98, [-0.55, 0.38, -0.32], 0.25, 0.3),
   key(18.7, '#7a3cb8', '#ff4f88', '#4a2078', '#ffc0d8', '#c070b0', '#806058', 1.25, 0.92, [-0.72, 0.22, -0.4], 0.55, 0.55),
@@ -93,7 +93,7 @@ function mixColor(out, a, b, t) {
 }
 
 export function createLighting(scene, refs, quality) {
-  const hemi = new HemisphereLight(0xfff4e4, 0xc4a574, 1.15);
+  const hemi = new HemisphereLight(0xfff4e4, 0xc4a574, 0.55);
   scene.add(hemi);
 
   const sun = new DirectionalLight(0xfff2d4, 2.3);

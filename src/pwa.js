@@ -7,9 +7,13 @@ export function setupPwa(toast) {
   const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
   if (hint && label && !localStorage.getItem('cotonou-install-hint')) {
     label.textContent = ios
-      ? 'Sur iPhone : touche Partager, puis « Ajouter à l\'écran d\'accueil ». Ensuite le jeu s\'ouvre sans réseau.'
-      : 'Sur Android : touche Installer, ou le menu du navigateur puis « Installer ». Le jeu reste jouable hors ligne.';
+      ? 'iPhone : Partager, puis « Ajouter à l\'écran d\'accueil ».'
+      : 'Android : menu du navigateur, puis Installer.';
     hint.classList.remove('hidden');
+    window.setTimeout(() => {
+      hint.classList.add('hidden');
+      localStorage.setItem('cotonou-install-hint', '1');
+    }, 6000);
   }
   document.getElementById('install-dismiss')?.addEventListener('click', () => {
     hint?.classList.add('hidden');
@@ -35,9 +39,16 @@ export function setupPwa(toast) {
 
   const banner = document.getElementById('update-banner');
   const reload = document.getElementById('update-reload');
+  let reloading = false;
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
+      updateSW(true);
       banner?.classList.remove('hidden');
     },
     onOfflineReady() {

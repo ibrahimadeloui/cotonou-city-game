@@ -70,30 +70,28 @@ export function createPost(renderer, scene, camera, quality) {
     composer.setSize(width, height);
     composer.addPass(new RenderPass(scene, camera));
     const mobile = quality.mobile;
-    if (tier === 'haute') {
+    if (!mobile && tier === 'haute') {
       const gtao = new GTAOPass(scene, camera, width, height);
       gtao.output = GTAOPass.OUTPUT.Default;
-      gtao.blendIntensity = mobile ? 0.4 : 0.65;
+      gtao.blendIntensity = 0.6;
       composer.addPass(gtao);
-      if (!mobile) composer.addPass(new SMAAPass(width * renderer.getPixelRatio(), height * renderer.getPixelRatio()));
-    } else if (tier === 'moyenne' && !mobile) {
+      composer.addPass(new SMAAPass(width * renderer.getPixelRatio(), height * renderer.getPixelRatio()));
+    } else if (!mobile && tier === 'moyenne') {
       const ssao = new SSAOPass(scene, camera, width, height, 12);
       ssao.kernelRadius = 10;
       ssao.minDistance = 0.002;
       ssao.maxDistance = 0.1;
       composer.addPass(ssao);
     }
-    const strength = tier === 'basse' ? 0.045 : tier === 'moyenne' ? 0.1 : 0.16;
-    composer.addPass(new UnrealBloomPass(new Vector2(width, height), strength, 0.3, 0.9));
-    if (tier !== 'basse') {
-      lutPass = new LUTPass({
-        lut: grade === 'sunset' ? luts.sunset : luts.day,
-        intensity: grade === 'sunset' ? 0.82 : 0.4,
-      });
-      composer.addPass(lutPass);
-    } else {
-      lutPass = null;
+    if (!mobile) {
+      const strength = tier === 'basse' ? 0.04 : tier === 'moyenne' ? 0.08 : 0.14;
+      composer.addPass(new UnrealBloomPass(new Vector2(width, height), strength, 0.3, 0.9));
     }
+    lutPass = new LUTPass({
+      lut: grade === 'sunset' ? luts.sunset : luts.day,
+      intensity: grade === 'sunset' ? 0.9 : 0.72,
+    });
+    composer.addPass(lutPass);
     composer.addPass(new OutputPass());
   }
 

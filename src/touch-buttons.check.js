@@ -61,7 +61,11 @@ async function exercise(page, label) {
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => document.getElementById('loader')?.classList.contains('hidden'), { timeout: 20000 });
+  await page.waitForFunction(() => document.getElementById('loader')?.classList.contains('hidden'), { timeout: 30000 });
+  const model = await page.evaluate(() => window.__cotonou.playerModel || '');
+  const meshName = await page.evaluate(() => window.__cotonou.playerMeshName || '');
+  assert(/ibrahim/i.test(model), `${label}: le joueur n'utilise pas ibrahim.glb (${model})`);
+  assert(/Ibrahim/i.test(meshName), `${label}: le mesh n'est pas Ibrahim (${meshName})`);
 
   await tap(page, '#play');
   await page.waitForFunction(() => window.__cotonou.started, { timeout: 5000 });
@@ -165,7 +169,7 @@ async function exercise(page, label) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.waitForFunction(() => Math.abs(window.__cotonou.exposure - 1.6) < 0.02);
-  const stored = await page.evaluate(() => localStorage.getItem('cotonou-brightness'));
+  const stored = await page.evaluate(() => localStorage.getItem('cotonou-brightness-v2'));
   assert(Math.abs(Number(stored) - 1.6) < 0.02, `${label}: luminosité non sauvée`);
   const steerLabel = await page.locator('#btn-steer-mode').innerText();
   await tap(page, '#btn-steer-mode');
