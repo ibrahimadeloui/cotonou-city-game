@@ -28,6 +28,7 @@ export function createInput() {
   let punchQueued = false;
   let dodgeQueued = false;
   let camQueued = false;
+  let useQueued = false;
   let gasHeld = false;
   let brakeHeld = false;
   let handHeld = false;
@@ -250,6 +251,8 @@ export function createInput() {
     if (target.closest('#btn-vehicle')) return 'vehicle';
     if (target.closest('#btn-horn')) return 'horn';
     if (target.closest('#btn-pause')) return 'pause';
+    if (target.closest('#btn-use')) return 'use';
+    if (target.closest('#btn-phone')) return 'phone';
     if (target.closest('#play')) return 'play';
     if (target.closest('#resume')) return 'resume';
     if (target.closest('#joystick')) return 'joy';
@@ -273,7 +276,7 @@ export function createInput() {
   }
 
   function blocked(target) {
-    return Boolean(target?.closest?.('#start, #pause .card, #credits .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
+    return Boolean(target?.closest?.('#start, #pause .card, #phone .card, #credits .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
   }
 
   window.addEventListener('pointerdown', (event) => {
@@ -321,6 +324,8 @@ export function createInput() {
     if (kind === 'punch') punchQueued = true;
     if (kind === 'dodge') dodgeQueued = true;
     if (kind === 'cam') camQueued = true;
+    if (kind === 'use') useQueued = true;
+    if (kind === 'phone') actions.phone?.();
     if (kind === 'steer-mode') actions.steer?.();
     syncDrive();
   }, { passive: false });
@@ -360,6 +365,7 @@ export function createInput() {
       actions.outfit = next.outfit || null;
       actions.density = next.density || null;
       actions.steer = next.steer || null;
+      actions.phone = next.phone || null;
     },
     sample(dt) {
       tickStick(dt);
@@ -405,6 +411,7 @@ export function createInput() {
         punch: punchQueued,
         dodge: dodgeQueued,
         cam: camQueued,
+        use: useQueued,
       };
       enterQueued = false;
       hornQueued = false;
@@ -415,6 +422,7 @@ export function createInput() {
       punchQueued = false;
       dodgeQueued = false;
       camQueued = false;
+      useQueued = false;
       return edges;
     },
     consumeLook() {

@@ -63,6 +63,8 @@ export function createUi() {
       const vehicle = game.player.vehicle;
       document.body.dataset.drive = vehicle ? '1' : '0';
       document.body.dataset.steer = game.steerMode || 'stick';
+      document.body.dataset.use = game.useLabel ? '1' : '0';
+      setText('use-label', game.useLabel || 'Parler');
       if (vehicle) {
         setText('speed', `${Math.round(Math.abs(vehicle.speed) * 3.6)} km/h`);
         setText('prompt', 'E  —  Descendre');

@@ -68,10 +68,11 @@ function pullCamera(target, dest, boxes) {
     const t = i / steps;
     const x = target.x + dx * t;
     const z = target.z + dz * t;
-    if (pointBlocked(x, z, 0.35, boxes)) {
-      const keep = Math.max(0.18, (i - 1) / steps);
+    if (pointBlocked(x, z, 0.45, boxes)) {
+      const keep = Math.max(0.22, (i - 1) / steps);
       dest.x = target.x + dx * keep;
       dest.z = target.z + dz * keep;
+      dest.y = Math.max(dest.y, target.y + 2.4);
       return;
     }
   }

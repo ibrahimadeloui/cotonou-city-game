@@ -315,6 +315,9 @@ function bindAnimations(root, model, gltf) {
       if (prev && prev !== next) prev.fadeOut(0.22);
       root.userData.current = nextName;
     }
+    const pace = root.userData.animScale || 1;
+    if (nextName === 'Walk') next.timeScale = Math.max(0.8, Math.min(1.45, pace));
+    if (nextName === 'Run') next.timeScale = Math.max(0.85, Math.min(1.35, pace));
     mixer.update(dt);
     if (mode === 'sit') {
       const left = model.getObjectByName('LeftUpLeg');
@@ -367,6 +370,9 @@ export function createActor(full, lod, options = {}) {
   root.add(near, far);
   far.visible = false;
   root.userData.tickAnim = (mode, dt) => {
+    const pace = root.userData.animScale || 1;
+    near.userData.animScale = pace;
+    far.userData.animScale = pace;
     near.userData.tickAnim(mode, dt);
     far.userData.tickAnim(mode, dt);
   };

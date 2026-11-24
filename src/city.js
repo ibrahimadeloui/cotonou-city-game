@@ -39,6 +39,7 @@ import {
   halfZ,
 } from './config.js';
 import buildingsUrl from './assets/cotonou-buildings.json';
+import { STALLS } from './stalls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addBox, coloredBox, mergeColored, mulberry32, paint } from './utils.js';
 
@@ -1076,11 +1077,7 @@ function signTexture(label, color) {
 }
 
 function addStreetDressing(scene) {
-  const signs = [
-    ['MAQUIS', '#f0c14a', -20, 78],
-    ['PHARMACIE', '#d7f3ff', 40, 130],
-    ['RIZ', '#e7c07a', 8, 150],
-  ];
+  const signs = STALLS.map((stall) => [stall.name.split(' ')[0].toUpperCase(), '#f0c14a', stall.x, stall.z]);
   for (const [label, color, x, z] of signs) {
     const stall = new Mesh(new BoxGeometry(3.2, 1.1, 2.2), new MeshLambertMaterial({ color: 0x8a5a32 }));
     stall.position.set(x, 0.55, z);

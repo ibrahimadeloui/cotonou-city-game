@@ -440,8 +440,8 @@ body[data-drive="1"] #speed { font-size: 28px; font-weight: 800; }
 }
 
 #buttons button {
-  width: 74px;
-  height: 74px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   border: 3px solid rgba(184, 106, 8, 0.85);
   background: rgba(255, 248, 236, 0.96);
@@ -449,7 +449,7 @@ body[data-drive="1"] #speed { font-size: 28px; font-weight: 800; }
   touch-action: none;
   transition: transform 90ms ease, background-color 90ms ease, box-shadow 90ms ease;
   font: inherit;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.05;
   display: flex;
@@ -500,6 +500,8 @@ body[data-drive="1"] #speed { font-size: 28px; font-weight: 800; }
 #drive-hud button.held { background: #f0c14a; transform: scale(0.96); box-shadow: 0 0 0 4px rgba(255, 176, 90, 0.4); }
 #drive-hud button small { font-size: 11px; font-weight: 650; }
 body[data-drive="1"] #drive-hud { display: block; }
+body[data-use="0"] #btn-use,
+body[data-drive="1"] #btn-use { display: none; }
 body[data-drive="1"] #btn-punch,
 body[data-drive="1"] #btn-dodge,
 body[data-drive="1"] #btn-run,
@@ -623,7 +625,7 @@ label.bright {
   padding: 28px 28px 22px;
 }
 
-#pause, #bust, #brief, #result, #credits {
+#pause, #phone, #bust, #brief, #result, #credits {
   z-index: 40;
   justify-content: center;
   background: rgba(8, 10, 16, 0.45);

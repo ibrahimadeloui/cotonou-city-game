@@ -41,6 +41,7 @@ import { setupPwa } from './pwa.js';
 import { createStory } from './story.js';
 import { createVoices } from './voices.js';
 import { createActor, createCrowd, loadCast } from './humanoid.js';
+import { nearestStall, nearestTalk, talkLine } from './stalls.js';
 import { updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
 import { damp, formatFCFA, resolveCircle } from './utils.js';
@@ -301,6 +302,14 @@ input.setActions({
     if (button) button.textContent = DENSITIES[densityIndex].label;
     note('density');
   },
+  phone() {
+    const panel = document.getElementById('phone');
+    const open = panel?.classList.contains('hidden');
+    document.getElementById('phone-mission').textContent = story.current()?.objective || story.current()?.body || 'Pas de mission en cours.';
+    document.getElementById('phone-money').textContent = `${game.money.toLocaleString('fr-FR')} FCFA`;
+    panel?.classList.toggle('hidden', !open);
+    note('phone');
+  },
   steer() {
     game.steerMode = game.steerMode === 'buttons' ? 'stick' : 'buttons';
     localStorage.setItem('cotonou-steer', game.steerMode);
@@ -383,6 +392,9 @@ document.getElementById('btn-tier')?.addEventListener('click', () => {
 });
 document.getElementById('btn-grade')?.addEventListener('click', () => {
   applyGrade(refs.grade === 'sunset' ? 'day' : 'sunset');
+});
+document.getElementById('phone-close')?.addEventListener('click', () => {
+  document.getElementById('phone')?.classList.add('hidden');
 });
 document.getElementById('btn-credits')?.addEventListener('click', () => {
   document.getElementById('credits')?.classList.remove('hidden');
@@ -820,8 +832,32 @@ function frame(now) {
   }
   if (edges.horn) {
     audio.horn();
+    player.hornAt = performance.now();
     if (player.vehicle) horn(player.vehicle);
     note('horn');
+  }
+  if (edges.use && !player.vehicle) {
+    const stall = nearestStall(player.pos);
+    const ped = nearestTalk(player.pos, peds);
+    if (stall) {
+      if (game.money >= stall.price) {
+        game.money -= stall.price;
+        player.hp = Math.min(player.hpMax || 100, (player.hp || 100) + stall.heal);
+        game.toast = stall.line;
+        game.toastUntil = performance.now() + 2800;
+        voices.say('vendeur');
+        note('buy');
+      } else {
+        game.toast = 'Pas assez de francs.';
+        game.toastUntil = performance.now() + 2000;
+      }
+    } else if (ped) {
+      game.toast = talkLine(ped);
+      game.toastUntil = performance.now() + 2600;
+      voices.say(Math.random() < 0.5 ? 'cava' : 'yovo');
+      ped.yaw = Math.atan2(player.pos.x - ped.pos.x, player.pos.z - ped.pos.z);
+      note('talk');
+    }
   }
 
   beginCombat(player, {
@@ -976,6 +1012,9 @@ function frame(now) {
     wanted: game.wanted,
     time,
   });
+  const stallNear = player.vehicle ? null : nearestStall(player.pos);
+  const talker = player.vehicle ? null : nearestTalk(player.pos, peds);
+  game.useLabel = stallNear ? 'Acheter' : talker ? 'Parler' : '';
   ui.update(game, camera);
   present();
   requestAnimationFrame(frame);
