@@ -290,6 +290,9 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
   player.pos.x = bounded.x;
   player.pos.z = bounded.z;
 
+  player.mesh.userData.animScale = player.moving
+    ? (player.speed > 5.2 ? player.speed / 5.4 : player.speed / 3.2)
+    : 1;
   player.mesh.position.set(player.pos.x, player.pos.y, player.pos.z);
   player.mesh.rotation.set(0, player.yaw, 0);
   const running = player.speed > WALK_SPEED + 0.35;
@@ -402,6 +405,23 @@ export function updatePeds(peds, dt, player, paths, onHit, camera, quality) {
       ped.yaw = Math.atan2((b.x - a.x) * ped.dir, (b.z - a.z) * ped.dir);
     }
     ped.phase += dt * ped.speed * 2.4;
+    const flee = (player.attackT || 0) > 0
+      && Math.hypot(player.pos.x - ped.pos.x, player.pos.z - ped.pos.z) < 7
+      && ped.temper !== 'fight';
+    if (flee) {
+      const dx = ped.pos.x - player.pos.x;
+      const dz = ped.pos.z - player.pos.z;
+      const len = Math.hypot(dx, dz) || 1;
+      ped.pos.x += (dx / len) * 2.4 * dt;
+      ped.pos.z += (dz / len) * 2.4 * dt;
+      ped.yaw = Math.atan2(dx, dz);
+    }
+    if (player.hornAt && performance.now() - player.hornAt < 700) {
+      const dx = player.pos.x - ped.pos.x;
+      const dz = player.pos.z - ped.pos.z;
+      if (Math.hypot(dx, dz) < 8) ped.yaw = Math.atan2(dx, dz);
+    }
+    ped.mesh.userData.animScale = walking && !flee ? ped.speed / 1.35 : 1;
     ped.mesh.position.set(ped.pos.x, 0, ped.pos.z);
     ped.mesh.rotation.set(0, ped.yaw, 0);
     if (hidden) continue;

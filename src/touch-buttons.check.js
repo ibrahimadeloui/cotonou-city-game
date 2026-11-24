@@ -79,6 +79,33 @@ async function exercise(page, label) {
   await page.waitForFunction(() => window.__cotonou.chevrons() > 2, { timeout: 4000 });
   const dot = await page.evaluate(() => window.__cotonou.chevronDot());
   assert(dot > 0, `${label}: les chevrons pointent à l'envers (${dot})`);
+  const overlap = await page.evaluate(() => {
+    function box(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      if (s.display === 'none' || s.visibility === 'hidden' || r.width < 2 || r.height < 2) return null;
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    }
+    function hit(a, b) {
+      if (!a || !b) return false;
+      return a.x < b.x + b.w - 2 && a.x + a.w > b.x + 2 && a.y < b.y + b.h - 2 && a.y + a.h > b.y + 2;
+    }
+    const mission = box('mission');
+    const prompt = box('prompt');
+    const money = box('money');
+    const punch = box('btn-punch');
+    const map = box('map-wrap');
+    return {
+      missionPrompt: hit(mission, prompt),
+      moneyPunch: hit(money, punch),
+      mapPunch: hit(map, punch),
+    };
+  });
+  assert(!overlap.missionPrompt, `${label}: la mission recouvre la consigne`);
+  assert(!overlap.moneyPunch, `${label}: l'argent recouvre Frapper`);
+  assert(!overlap.mapPunch, `${label}: la carte recouvre Frapper`);
 
   const dismiss = page.locator('#install-dismiss');
   if (await dismiss.isVisible()) await dismiss.tap();
@@ -143,17 +170,25 @@ async function exercise(page, label) {
     touchPoints: [{ x: jx, y: jy - 70, id: 1 }],
   });
   await page.waitForTimeout(180);
+  const punchNow = await page.locator('#btn-punch').boundingBox();
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
     touchPoints: [
       { x: jx, y: jy - 70, id: 1 },
-      { x: punch.x + punch.width / 2, y: punch.y + punch.height / 2, id: 2 },
+      { x: punchNow.x + punchNow.width / 2, y: punchNow.y + punchNow.height / 2, id: 2 },
     ],
   });
   await page.waitForTimeout(700);
   await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  const moved = await page.evaluate(() => ({ x: window.__cotonou.x, punches: window.__cotonou.punches }));
-  assert(moved.punches > origin.punches, `${label}: Frapper pendant le joystick`);
+  const moved = await page.evaluate(({ x, y }) => {
+    const el = document.elementFromPoint(x, y);
+    return {
+      x: window.__cotonou.x,
+      punches: window.__cotonou.punches,
+      hit: el ? (el.id || el.getAttribute('aria-label') || el.tagName) : 'none',
+    };
+  }, { x: punch.x + punch.width / 2, y: punch.y + punch.height / 2 });
+  assert(moved.punches > origin.punches, `${label}: Frapper pendant le joystick (${moved.hit}, ${origin.punches}→${moved.punches})`);
   assert(Math.abs(moved.x - origin.x) > 0.2, `${label}: le joystick ne déplace pas en multi-touch`);
 
   await tap(page, '#btn-pause');

@@ -26,6 +26,7 @@
             <p class="eyebrow">Cotonou City</p>
             <h2 id="player-name">Ibrahim</h2>
             <p id="money">2&nbsp;500&nbsp;FCFA</p>
+            <button type="button" id="btn-phone">Tél</button>
             <div id="hp" aria-label="Santé"><span id="hp-fill"></span></div>
             <p id="district">Route des Pêches</p>
             <p id="jobs">Courses : 0</p>
@@ -75,6 +76,9 @@
         <button type="button" id="btn-run" aria-label="Courir">
           <span id="run-label">Courir</span>
           <small id="run-key">Maj</small>
+        </button>
+        <button type="button" id="btn-use" aria-label="Parler ou acheter">
+          <span id="use-label">Parler</span>
         </button>
         <button type="button" id="btn-vehicle" aria-label="Monter dans un véhicule">
           <span id="vehicle-label">Monter</span>
@@ -129,6 +133,15 @@
           <li>Glisse à droite de l'écran pour tourner la caméra. Le portrait en haut à gauche lance un selfie.</li>
           <li>iPhone : Partager, puis Ajouter à l'écran d'accueil. Android : Installer. Le jeu marche ensuite hors ligne.</li>
         </ul>
+      </div>
+    </div>
+    <div id="phone" class="overlay hidden">
+      <div class="card panel">
+        <p class="eyebrow">Téléphone</p>
+        <h2>Missions et argent</h2>
+        <p id="phone-mission"></p>
+        <p id="phone-money"></p>
+        <button type="button" id="phone-close">Fermer</button>
       </div>
     </div>
     <div id="pause" class="overlay hidden">
