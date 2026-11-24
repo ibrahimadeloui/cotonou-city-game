@@ -8,6 +8,7 @@ import {
   MeshPhongMaterial,
   SRGBColorSpace,
 } from 'three';
+import { cameraPlanarBasis } from './camera-basis.js';
 import { PARKED, SPECS } from './config.js';
 import { createHuman, poseHuman } from './people.js';
 import { clamp, clampWorld, damp, resolveCircle } from './utils.js';
@@ -365,12 +366,12 @@ function laneFor(from, to) {
 function drivePlayer(vehicle, dt, input, collision, onCrash) {
   const spec = SPECS[vehicle.type];
   const handbrake = input.handbrake;
+  const basis = Number.isFinite(input.cameraYaw) ? cameraPlanarBasis(input.cameraYaw) : null;
   let throttle = input.forward;
   let steer = input.right;
-  if (Number.isFinite(input.cameraYaw) && !handbrake) {
-    const yaw = input.cameraYaw;
-    const wishX = Math.sin(yaw) * input.forward + Math.cos(yaw) * input.right;
-    const wishZ = Math.cos(yaw) * input.forward - Math.sin(yaw) * input.right;
+  if (basis && !handbrake) {
+    const wishX = basis.forwardX * input.forward + basis.rightX * input.right;
+    const wishZ = basis.forwardZ * input.forward + basis.rightZ * input.right;
     const mag = Math.min(1, Math.hypot(wishX, wishZ));
     throttle = 0;
     steer = 0;
@@ -390,6 +391,15 @@ function drivePlayer(vehicle, dt, input, collision, onCrash) {
   let { speed } = vehicle;
   if (handbrake) {
     speed = damp(speed, 0, 3.4, dt);
+    if (basis) {
+      // Augmenter le yaw déplace le nez vers la gauche de l'écran quand
+      // la voiture regarde comme la caméra. On inverse pour que stick
+      // droite = tourner vers la droite de l'écran.
+      const noseX = Math.cos(vehicle.yaw);
+      const noseZ = -Math.sin(vehicle.yaw);
+      const towardRight = noseX * basis.rightX + noseZ * basis.rightZ;
+      steer = input.right * (towardRight >= 0 ? 1 : -1);
+    }
     vehicle.yaw += steer * spec.turn * 1.35 * dt;
   } else {
     const sign = speed >= -0.15 ? 1 : -1;
