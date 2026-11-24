@@ -5,6 +5,12 @@ export function createAudio() {
   let oceanGain = null;
   let sirenOsc = null;
   let sirenGain = null;
+  let marketGain = null;
+  let musicA = null;
+  let musicB = null;
+  let musicGain = null;
+  let motoOsc = null;
+  let motoGain = null;
   let ready = false;
 
   function ensure() {
@@ -23,7 +29,7 @@ export function createAudio() {
     engineOsc.connect(filter);
     filter.connect(engineGain);
     engineGain.connect(ctx.destination);
-    engineOsc.start();
+    try { engineOsc.start(); } catch { /* WebKit sans sortie audio */ }
 
     const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -39,7 +45,7 @@ export function createAudio() {
     noise.connect(of);
     of.connect(oceanGain);
     oceanGain.connect(ctx.destination);
-    noise.start();
+    try { noise.start(); } catch { /* silence */ }
 
     sirenOsc = ctx.createOscillator();
     sirenOsc.type = 'square';
@@ -52,7 +58,47 @@ export function createAudio() {
     sirenOsc.connect(sf);
     sf.connect(sirenGain);
     sirenGain.connect(ctx.destination);
-    sirenOsc.start();
+    try { sirenOsc.start(); } catch { /* silence */ }
+
+    const crowd = ctx.createBufferSource();
+    crowd.buffer = buffer;
+    crowd.loop = true;
+    const crowdFilter = ctx.createBiquadFilter();
+    crowdFilter.type = 'bandpass';
+    crowdFilter.frequency.value = 900;
+    crowdFilter.Q.value = 0.7;
+    marketGain = ctx.createGain();
+    marketGain.gain.value = 0;
+    crowd.connect(crowdFilter);
+    crowdFilter.connect(marketGain);
+    marketGain.connect(ctx.destination);
+    try { crowd.start(); } catch { /* silence */ }
+
+    musicA = ctx.createOscillator();
+    musicB = ctx.createOscillator();
+    musicA.type = 'triangle';
+    musicB.type = 'sine';
+    musicA.frequency.value = 196;
+    musicB.frequency.value = 247;
+    musicGain = ctx.createGain();
+    musicGain.gain.value = 0;
+    musicA.connect(musicGain);
+    musicB.connect(musicGain);
+    musicGain.connect(ctx.destination);
+    try { musicA.start(); musicB.start(); } catch { /* silence */ }
+
+    motoOsc = ctx.createOscillator();
+    motoOsc.type = 'sawtooth';
+    motoOsc.frequency.value = 90;
+    const motoFilter = ctx.createBiquadFilter();
+    motoFilter.type = 'lowpass';
+    motoFilter.frequency.value = 420;
+    motoGain = ctx.createGain();
+    motoGain.gain.value = 0;
+    motoOsc.connect(motoFilter);
+    motoFilter.connect(motoGain);
+    motoGain.connect(ctx.destination);
+    try { motoOsc.start(); } catch { /* silence */ }
     ready = true;
   }
 
@@ -66,20 +112,24 @@ export function createAudio() {
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     osc.connect(g);
     g.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + dur + 0.02);
+    try {
+      osc.start();
+      osc.stop(ctx.currentTime + dur + 0.02);
+    } catch {
+      /* silence */
+    }
   }
 
   return {
     resume() {
       try {
         ensure();
-        if (ctx && ctx.state !== 'running') ctx.resume();
+        if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
       } catch {
         ready = false;
       }
     },
-    update({ driving, speed, maxSpeed, nearOcean, wanted, time }) {
+    update({ driving, speed, maxSpeed, nearOcean, wanted, time, x = 0, z = 0, vehicles = [] }) {
       if (!ready) return;
       const now = ctx.currentTime;
       const eg = driving ? 0.018 + (Math.abs(speed) / Math.max(1, maxSpeed)) * 0.035 : 0;
@@ -90,6 +140,29 @@ export function createAudio() {
       if (wanted > 0) {
         sirenOsc.frequency.setTargetAtTime(Math.sin(time * 9) > 0 ? 680 : 480, now, 0.05);
       }
+      const market = Math.max(0, 1 - Math.hypot(x, z - 134) / 42);
+      marketGain.gain.setTargetAtTime(market * market * 0.045, now, 0.2);
+      const maquis = Math.max(0, 1 - Math.hypot(x + 148, z - 28) / 28);
+      const wobble = 0.7 + Math.sin(time * 1.7) * 0.3;
+      musicGain.gain.setTargetAtTime(maquis * maquis * 0.02 * wobble, now, 0.15);
+      let moto = 0;
+      let hz = 90;
+      for (const vehicle of vehicles) {
+        if (vehicle.dead || vehicle.type !== 'zem' || vehicle.controlled) continue;
+        const d = Math.hypot(vehicle.pos.x - x, vehicle.pos.z - z);
+        const hear = Math.max(0, 1 - d / 36) * Math.min(1, Math.abs(vehicle.speed) / 8);
+        if (hear > moto) {
+          moto = hear;
+          hz = 70 + Math.abs(vehicle.speed) * 7;
+        }
+        if (vehicle.hornT > 0.2 && !vehicle.hornSound) {
+          vehicle.hornSound = true;
+          tone(vehicle.type === 'zem' ? 320 : 190, 0.15, 'square', 0.012 + hear * 0.02);
+        }
+        if (vehicle.hornT <= 0) vehicle.hornSound = false;
+      }
+      motoGain.gain.setTargetAtTime(moto * 0.03, now, 0.08);
+      motoOsc.frequency.setTargetAtTime(hz, now, 0.08);
     },
     blip(kind) {
       if (kind === 'cash') {

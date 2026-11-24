@@ -42,6 +42,7 @@ import { createStory } from './story.js';
 import { createVoices } from './voices.js';
 import { createActor, createCrowd, loadCast } from './humanoid.js';
 import { nearestStall, nearestTalk, talkLine } from './stalls.js';
+import { createZemJob } from './zemjob.js';
 import { updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
 import { damp, formatFCFA, resolveCircle } from './utils.js';
@@ -62,7 +63,7 @@ const savedTier = localStorage.getItem('cotonou-tier');
 quality.tier = savedTier === 'haute' || savedTier === 'moyenne' || savedTier === 'basse'
   ? savedTier
   : (quality.mobile ? 'moyenne' : 'haute');
-quality.shadows = quality.tier === 'haute';
+quality.shadows = quality.tier !== 'basse';
 quality.pixelRatio = Math.min(window.devicePixelRatio || 1, pixelCap());
 const refs = {};
 refs.grade = localStorage.getItem('cotonou-grade') === 'sunset' ? 'sunset' : 'day';
@@ -254,6 +255,7 @@ ibrahim.position.set(player.pos.x, 0, player.pos.z);
 ibrahim.rotation.y = player.yaw;
 
 const crowd = createCrowd(scene, city.paths, quality, Math.random, cast);
+const zemJob = createZemJob(scene);
 const peds = crowd.peds;
 const DENSITIES = [
   { value: 1, label: 'Foule dense' },
@@ -347,7 +349,7 @@ const game = {
 
 function applyTier(id) {
   if (id === 'haute' || id === 'moyenne' || id === 'basse') quality.tier = id;
-  quality.shadows = quality.tier === 'haute';
+  quality.shadows = quality.tier !== 'basse';
   renderer.shadowMap.enabled = quality.shadows;
   if (refs.sun) {
     refs.sun.castShadow = quality.shadows;
@@ -410,6 +412,7 @@ input.setJoySize(joySize);
 joySizeInput?.addEventListener('input', (event) => input.setJoySize(event.target.value));
 
 let cycle = 0.2;
+let hourLock = null;
 const fps = { t: 0, n: 0, level: 1, hide: 140, last: 0 };
 let driveThrottle = 0;
 let boostTank = 1;
@@ -680,13 +683,30 @@ window.__cotonou = {
     };
   },
   stand(x, z, yaw) {
+    player.board = null;
     player.pos.x = x;
     player.pos.z = z;
     player.pos.y = 0;
     player.yaw = yaw;
     player.mesh.position.set(x, 0, z);
     player.mesh.rotation.y = yaw;
+    rig.state.yaw = yaw;
+    rig.snap();
   },
+  close(on) {
+    rig.state.camExtra = on ? -2.6 : 0;
+    rig.snap();
+  },
+  setHour(hour) {
+    hourLock = Number(hour);
+    game.hour = hourLock;
+  },
+  wheelCount() { return player.vehicle?.wheels?.length || 0; },
+  lightCount() { return player.vehicle?.lights || 0; },
+  exitVehicle() {
+    if (player.vehicle) traffic.exit(player, city.collision);
+  },
+  fareState() { return zemJob.fare().state; },
   missionKind() { return story.current()?.kind || ''; },
   missionVehicle() { return story.current()?.vehicle || ''; },
   knockBoss() { return story.knockBoss(); },
@@ -749,7 +769,7 @@ function frame(now) {
 
   if (!started) {
     cycle = (cycle + dt / CYCLE_SECONDS) % 1;
-    game.hour = hourFromCycle(cycle);
+    game.hour = hourLock == null ? hourFromCycle(cycle) : hourLock;
     focus.set(SPAWN.x, 0, SPAWN.z);
     lighting.update(dt, game.hour, focus, camera);
     animateWorld(dt, time);
@@ -806,7 +826,7 @@ function frame(now) {
     else if (rate > 58 && fps.level < 2) tuneQuality(fps.level + 1);
   }
   cycle = (cycle + dt / CYCLE_SECONDS) % 1;
-  game.hour = hourFromCycle(cycle);
+  game.hour = hourLock == null ? hourFromCycle(cycle) : hourLock;
   rig.addLook(look.x, look.y);
 
   if (edges.jump && !player.vehicle) note('jump');
@@ -909,6 +929,14 @@ function frame(now) {
   }
 
   updatePeds(peds, dt, player, city.paths, () => addWanted('Tu as renversé un piéton.'), camera, quality);
+  const fare = zemJob.update(dt, player, peds);
+  if (fare.event === 'call') toast('Un client attend. Suis le cercle jaune.');
+  if (fare.event === 'pick') toast(fare.place ? `Client à bord. Direction ${fare.place}.` : 'Client à bord.');
+  if (fare.event === 'drop') {
+    game.money += fare.pay || 0;
+    toast(`Course payée : ${(fare.pay || 0).toLocaleString('fr-FR')} FCFA.`);
+    audio.blip('cash');
+  }
   crowd.updateLod(camera, peds.frame || 0);
   const camDist = Math.hypot(camera.position.x - player.pos.x, camera.position.z - player.pos.z);
   ibrahim.userData.updateDistance?.(camDist);
@@ -991,7 +1019,8 @@ function frame(now) {
   const face = player.vehicle ? player.vehicle.yaw : player.yaw;
   const moving = player.vehicle ? Math.abs(player.vehicle.speed) > 0.8 : player.moving;
   const dist = player.vehicle ? SPECS[player.vehicle.type].cam : 6.5;
-  rig.update(dt, focus, face, moving, dist, city.collision, performance.now() < selfieUntil && !player.vehicle, player.vehicle ? 4.2 : 2.4);
+  const boardExtra = player.board ? (1 - Math.min(1, player.board.t / player.board.dur)) * 2.4 : 0;
+  rig.update(dt, focus, face, moving, dist + boardExtra, city.collision, performance.now() < selfieUntil && !player.vehicle, player.vehicle ? 4.2 : 2.4);
   const speedNow = player.vehicle ? Math.abs(player.vehicle.speed) : 0;
   const fov = 68 + Math.min(7, speedNow * 0.22);
   if (Math.abs(camera.fov - fov) > 0.15) {
@@ -1011,6 +1040,9 @@ function frame(now) {
     nearOcean: player.pos.z < 70,
     wanted: game.wanted,
     time,
+    x: player.pos.x,
+    z: player.pos.z,
+    vehicles: traffic.list,
   });
   const stallNear = player.vehicle ? null : nearestStall(player.pos);
   const talker = player.vehicle ? null : nearestTalk(player.pos, peds);

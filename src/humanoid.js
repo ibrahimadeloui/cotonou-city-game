@@ -4,11 +4,14 @@ import {
   CanvasTexture,
   Color,
   Group,
+  CircleGeometry,
+  CylinderGeometry,
   InstancedMesh,
   LoopOnce,
   LoopRepeat,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   MeshStandardMaterial,
   RepeatWrapping,
@@ -22,6 +25,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { PARKED, PLACES } from './config.js';
+import { STALLS } from './stalls.js';
 
 const SCALE = 0.355;
 const FEET = 0.12;
@@ -365,7 +369,10 @@ export function createRiggedCharacter(gltf, { shadows = false } = {}) {
 export function createActor(full, lod, options = {}) {
   const near = createRiggedCharacter(full, options);
   const far = lod ? createRiggedCharacter(lod, { shadows: false }) : null;
-  if (!far) return near;
+  if (!far) {
+    if (options.blob) addBlob(near);
+    return near;
+  }
   const root = new Group();
   root.add(near, far);
   far.visible = false;
@@ -384,7 +391,32 @@ export function createActor(full, lod, options = {}) {
     near.visible = !useFar;
     far.visible = useFar;
   };
+  if (options.blob) addBlob(root);
   return root;
+}
+
+function addBlob(root) {
+  const blob = new Mesh(
+    new CircleGeometry(0.48, 10),
+    new MeshBasicMaterial({ color: 0x120c08, transparent: true, opacity: 0.38, depthWrite: false }),
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.04;
+  blob.userData.blob = true;
+  root.add(blob);
+}
+
+function tintActor(root, shift, lift) {
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material || obj.userData.blob) return;
+    const list = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const clones = list.map((material) => {
+      const copy = material.clone();
+      if (copy.color) copy.color.offsetHSL(shift, 0.03, lift);
+      return copy;
+    });
+    obj.material = Array.isArray(obj.material) ? clones : clones[0];
+  });
 }
 
 function spot(x, z, yaw, behavior) {
@@ -399,17 +431,21 @@ export function createCrowd(scene, paths, quality, rand, cast) {
     ...PARKED.filter((car) => car.type === 'zem').map((car) => ({ x: car.x + 1.4, z: car.z + 1.2 })),
   ];
   const specs = [];
+  for (const stall of STALLS) {
+    specs.push(spot(stall.x + 1.15, stall.z + 0.2, Math.PI, 'vendor'));
+    specs.push(spot(stall.x - 0.2, stall.z + 1.7, 0.2, 'sit'));
+  }
+  const still = Math.min(specs.length, Math.max(4, Math.floor(count * 0.28)));
+  specs.length = still;
   anchors.forEach((anchor, index) => {
-    const group = index % 5 === 0 ? 3 : 2;
-    for (let k = 0; k < group; k += 1) {
-      const ang = (k / group) * Math.PI * 2 + rand();
-      specs.push(spot(
-        anchor.x + Math.cos(ang) * (0.7 + rand()),
-        anchor.z + Math.sin(ang) * (0.7 + rand()),
-        ang + Math.PI,
-        index % 4 === 0 ? 'vendor' : 'idle',
-      ));
-    }
+    if (specs.length >= Math.floor(count * 0.45)) return;
+    const ang = rand() * Math.PI * 2;
+    specs.push(spot(
+      anchor.x + Math.cos(ang) * 0.8,
+      anchor.z + Math.sin(ang) * 0.8,
+      ang + Math.PI,
+      index % 3 === 0 ? 'vendor' : 'idle',
+    ));
   });
   while (specs.length < count) {
     const path = paths[Math.floor(rand() * paths.length)];
@@ -435,7 +471,8 @@ export function createCrowd(scene, paths, quality, rand, cast) {
       robe,
     };
     const type = cast.types[i % cast.types.length];
-    const mesh = createActor(type.full, type.lod, { shadows: false });
+    const mesh = createActor(type.full, type.lod, { shadows: false, blob: true });
+    tintActor(mesh, (rand() - 0.5) * 0.08, (rand() - 0.5) * 0.05);
     mesh.scale.setScalar(0.94 + rand() * 0.12);
     mesh.position.set(spec.x, 0, spec.z);
     mesh.rotation.y = spec.yaw;
@@ -465,8 +502,8 @@ export function createCrowd(scene, paths, quality, rand, cast) {
     });
   }
 
-  const impostorGeo = new SphereGeometry(0.28, 6, 5);
-  impostorGeo.translate(0, 0.9, 0);
+  const impostorGeo = new CylinderGeometry(0.22, 0.26, 1.15, 6);
+  impostorGeo.translate(0, 0.72, 0);
   const impostor = new InstancedMesh(
     impostorGeo,
     new MeshLambertMaterial({ color: 0xffffff }),
@@ -482,7 +519,15 @@ export function createCrowd(scene, paths, quality, rand, cast) {
     const t = rand();
     const x = path.a.x + (path.b.x - path.a.x) * t + (rand() - 0.5) * 1.5;
     const z = path.a.z + (path.b.z - path.a.z) * t + (rand() - 0.5) * 1.5;
-    spots.push({ x, z, h: 0.85 + rand() * 0.25 });
+    spots.push({
+      x,
+      z,
+      h: 0.9 + rand() * 0.2,
+      path,
+      t,
+      dir: rand() < 0.5 ? 1 : -1,
+      speed: 0.7 + rand() * 0.5,
+    });
     dummy.makeScale(spots[i].h, spots[i].h, spots[i].h);
     dummy.setPosition(x, 0, z);
     impostor.setMatrixAt(i, dummy);
@@ -502,11 +547,20 @@ export function createCrowd(scene, paths, quality, rand, cast) {
         ped.mesh.userData.updateDistance?.(dist);
       }
       for (let i = 0; i < spots.length; i += 1) {
-        const d = Math.hypot(spots[i].x - camera.position.x, spots[i].z - camera.position.z);
+        const spot = spots[i];
+        const len = Math.hypot(spot.path.b.x - spot.path.a.x, spot.path.b.z - spot.path.a.z) || 1;
+        spot.t += spot.dir * (spot.speed * 0.016) / len;
+        if (spot.t > 1 || spot.t < 0) {
+          spot.dir *= -1;
+          spot.t = Math.min(1, Math.max(0, spot.t));
+        }
+        spot.x = spot.path.a.x + (spot.path.b.x - spot.path.a.x) * spot.t;
+        spot.z = spot.path.a.z + (spot.path.b.z - spot.path.a.z) * spot.t;
+        const d = Math.hypot(spot.x - camera.position.x, spot.z - camera.position.z);
         const show = d > hide && d < (camera.far || 400);
-        const s = show ? spots[i].h : 0.0001;
+        const s = show ? spot.h : 0.0001;
         dummy.makeScale(s, s, s);
-        dummy.setPosition(spots[i].x, 0, spots[i].z);
+        dummy.setPosition(spot.x, 0, spot.z);
         impostor.setMatrixAt(i, dummy);
       }
       if (frame % 6 === 0) impostor.instanceMatrix.needsUpdate = true;

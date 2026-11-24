@@ -14,15 +14,15 @@ import { lerp } from './utils.js';
 const KEYS = [
   key(0, '#243e6e', '#4d6ea3', '#2c446c', '#d5e4ff', '#9eb4d8', '#6d5b48', 0.62, 0.95, [0.2, 0.86, 0.2], 1, 0.75),
   key(5.5, '#4e86c4', '#ffd0a4', '#ffe0c0', '#ffe6c4', '#f2c8a4', '#8a6848', 1.15, 0.95, [0.55, 0.62, -0.18], 0.4, 0.2),
-  key(7.5, '#6ec4f4', '#fff3d8', '#ffe8c4', '#fff6e0', '#fff1d6', '#c4a574', 2.05, 1.12, [0.7, 0.58, -0.18], 0.04, 0),
-  key(10, '#5eb6ee', '#d7e7f6', '#c5d4e6', '#fff4df', '#d5e4f2', '#8d7358', 1.35, 0.62, [0.28, 0.9, -0.16], 0, 0),
-  key(13, '#4ea8e6', '#e7eef6', '#d5e0ec', '#fff7ea', '#dde6f0', '#9a8068', 1.42, 0.66, [0.02, 0.99, -0.1], 0, 0),
+  key(7.5, '#2f86e4', '#f0d2a8', '#c98448', '#fff6d8', '#9ec4ee', '#8a4e30', 2.15, 0.48, [0.7, 0.58, -0.18], 0.04, 0),
+  key(10, '#1d6ed4', '#8ec4f4', '#b86a38', '#fff4d4', '#7eafdf', '#7a4328', 2.45, 0.34, [0.28, 0.9, -0.16], 0, 0),
+  key(13, '#1864cc', '#7eb6ee', '#c07840', '#fff6dc', '#78a8d8', '#6e3c24', 2.55, 0.32, [0.02, 0.99, -0.1], 0, 0),
   key(16.4, '#ff8ec8', '#ff7a4a', '#ffd0a8', '#ffe0b0', '#ffc0d0', '#c48a6a', 2.05, 1.05, [-0.28, 0.62, -0.22], 0.08, 0.08),
   key(17.6, '#d24ad8', '#ff5c6a', '#7a3c9a', '#ffb0c8', '#e090c0', '#a07068', 1.65, 0.98, [-0.55, 0.38, -0.32], 0.25, 0.3),
   key(18.7, '#7a3cb8', '#ff4f88', '#4a2078', '#ffc0d8', '#c070b0', '#806058', 1.25, 0.92, [-0.72, 0.22, -0.4], 0.55, 0.55),
   key(19.8, '#3a2d78', '#ff6a8a', '#2a2458', '#ffd0c0', '#a080c0', '#6a5048', 0.85, 0.95, [-0.4, 0.18, -0.3], 0.9, 0.75),
-  key(22, '#243e6e', '#4d6ea3', '#2c446c', '#d5e4ff', '#9eb4d8', '#6d5b48', 0.62, 0.95, [-0.08, 0.82, 0.18], 1, 0.75),
-  key(24, '#243e6e', '#4d6ea3', '#2c446c', '#d5e4ff', '#9eb4d8', '#6d5b48', 0.62, 0.95, [0.2, 0.86, 0.2], 1, 0.75),
+  key(22, '#1a3268', '#3e5e98', '#241c48', '#d5e4ff', '#8ea6cc', '#5c4638', 0.48, 0.42, [-0.08, 0.82, 0.18], 1.35, 0.9),
+  key(24, '#1a3268', '#3e5e98', '#241c48', '#d5e4ff', '#8ea6cc', '#5c4638', 0.48, 0.42, [0.2, 0.86, 0.2], 1.35, 0.9),
 ];
 
 function key(h, top, hor, bot, light, amb, ground, sunI, ambI, sun, lamp, win) {
@@ -113,7 +113,7 @@ export function createLighting(scene, refs, quality) {
   scene.add(sun);
   scene.add(sun.target);
 
-  const fog = new Fog(0xfff3dc, 170, 680);
+  const fog = new Fog(0x8ec0ee, 240, 980);
   scene.fog = fog;
 
   const skyMat = new ShaderMaterial({
@@ -195,7 +195,7 @@ export function createLighting(scene, refs, quality) {
       if (refs.lampMat) refs.lampMat.emissiveIntensity = lamp;
       if (refs.cloudMat) {
         refs.cloudMat.color.copy(hor).lerp(new Color('#ffffff'), 0.55);
-        refs.cloudMat.opacity = 0.28 + (1 - lamp) * 0.4;
+        refs.cloudMat.opacity = 0.55 + (1 - lamp) * 0.3;
       }
       refs.nightHead = Math.max(lamp, win * 0.85);
 
