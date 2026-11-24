@@ -20,7 +20,11 @@ import {
 import { createCity } from './city.js';
 import { createInput } from './input.js';
 import { createLighting } from './lighting.js';
+import { beginCombat, resolveCombat } from './combat.js';
 import { createMissions } from './missions.js';
+import { setupPwa } from './pwa.js';
+import { createStory } from './story.js';
+import { createVoices } from './voices.js';
 import faceUrl from './assets/ibrahim-face.jpg';
 import humanUrl from './assets/human.glb?url';
 import { createCrowd, createRiggedCharacter, loadHumanGltf } from './humanoid.js';
@@ -76,6 +80,8 @@ const player = {
   vehicle: null,
   moving: false,
   speed: 0,
+  hp: 100,
+  hpMax: 100,
 };
 ibrahim.position.set(player.pos.x, 0, player.pos.z);
 ibrahim.rotation.y = player.yaw;
@@ -92,6 +98,8 @@ peds.density = DENSITIES[densityIndex].value;
 const densityButton = document.getElementById('btn-density');
 if (densityButton) densityButton.textContent = DENSITIES[densityIndex].label;
 const missions = createMissions(scene);
+const story = createStory(missions);
+const voices = createVoices();
 const input = createInput();
 input.setActions({
   play() {
@@ -102,6 +110,7 @@ input.setActions({
     audio.resume();
     rig.state.yaw = player.yaw;
     rig.snap();
+    if (!story.done()) story.openBrief();
   },
   resume() {
     paused = false;
@@ -128,7 +137,7 @@ rig.state.yaw = SPAWN.yaw;
 
 const focus = new Vector3();
 const game = {
-  money: START_MONEY,
+  money: story.save?.money ?? START_MONEY,
   wanted: 0,
   player,
   missions,
@@ -168,10 +177,32 @@ resize();
 window.addEventListener('resize', resize);
 window.visualViewport?.addEventListener('resize', resize);
 
+if (story.save) missions.state.jobs = story.save.jobs;
+document.getElementById('brief-go')?.addEventListener('click', () => story.begin());
+setupPwa(toast);
+
 function toast(text) {
   game.toast = text;
   game.toastUntil = performance.now() + 3400;
 }
+
+story.setHooks({
+  toast,
+  say(id) { voices.say(id); },
+  reward(pay) {
+    game.money += pay;
+    missions.state.jobs += 1;
+    audio.blip('cash');
+    story.persist(game.money, missions.state.jobs);
+  },
+  setWanted(level) {
+    game.wanted = level;
+    wantedCool = 0;
+  },
+  persist() {
+    story.persist(game.money, missions.state.jobs);
+  },
+});
 
 function addWanted(reason) {
   const now = performance.now();
@@ -221,6 +252,7 @@ function startBust() {
   bustTimer = 0;
   bustFine = Math.min(game.money, Math.max(game.money > 0 ? 400 : 0, Math.round((game.money * 0.28) / 50) * 50));
   game.money -= bustFine;
+  story.noteBust();
   game.wanted = 0;
   wantedCool = 0;
   for (let i = traffic.list.length - 1; i >= 0; i -= 1) {
@@ -251,6 +283,8 @@ function finishBust() {
   busting = false;
   document.getElementById('bust').classList.add('hidden');
   toast('Ibrahim est relâché à Fidjrossè.');
+  story.afterBust();
+  story.persist(game.money, missions.state.jobs);
 }
 
 function animateWorld(dt, time) {
@@ -323,7 +357,7 @@ function frame(now) {
     paused = !paused;
     document.getElementById('pause').classList.toggle('hidden', !paused);
   }
-  if (paused) {
+  if (paused || story.holding()) {
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -356,6 +390,11 @@ function frame(now) {
     audio.horn();
   }
 
+  beginCombat(player, {
+    ...sample,
+    punch: edges.punch && !player.vehicle,
+    dodge: edges.dodge && !player.vehicle,
+  }, rig.state.yaw, dt);
   updatePlayer(player, dt, {
     ...sample,
     jump: edges.jump && !player.vehicle,
@@ -383,6 +422,19 @@ function frame(now) {
 
   updatePeds(peds, dt, player, city.paths, () => addWanted('Tu as renversé un piéton.'), camera, quality);
   crowd.updateLod(camera, peds.frame || 0);
+  game.foe = resolveCombat(dt, player, peds, {
+    say(id) { voices.say(id); },
+    onAttack() { addWanted('Tu as frappé quelqu\'un. La police est prévenue.'); },
+    onHospital() {
+      game.money = Math.max(0, game.money - 500);
+      story.persist(game.money, missions.state.jobs);
+      toast('L\'hôpital de Cotonou te remet debout.');
+      rig.state.yaw = player.yaw;
+      rig.snap();
+    },
+  });
+  voices.tick(dt, player, peds);
+  if (!story.done()) story.update(dt, player, peds);
 
   bumpCool = Math.max(0, bumpCool - dt);
   if (!player.vehicle) {

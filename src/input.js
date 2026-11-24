@@ -18,6 +18,8 @@ export function createInput() {
   let jumpQueued = false;
   let selfieQueued = false;
   let outfitQueued = false;
+  let punchQueued = false;
+  let dodgeQueued = false;
   let lookDx = 0;
   let lookDy = 0;
 
@@ -81,9 +83,9 @@ export function createInput() {
     const code = event.code || '';
     const key = (event.key || '').toLowerCase();
     return (
-      ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyQ', 'KeyE', 'KeyH', 'KeyP', 'KeyC', 'KeyV', 'Space', 'Escape',
+      ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyQ', 'KeyE', 'KeyH', 'KeyP', 'KeyC', 'KeyV', 'KeyF', 'KeyR', 'Space', 'Escape',
         'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'].includes(code)
-      || ['w', 'a', 's', 'd', 'z', 'q', 'e', 'h', 'p', 'c', 'v', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)
+      || ['w', 'a', 's', 'd', 'z', 'q', 'e', 'h', 'p', 'c', 'v', 'f', 'r', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)
     );
   }
 
@@ -101,6 +103,8 @@ export function createInput() {
     if (code === 'Escape' || code === 'KeyP' || key === 'p' || key === 'escape') pauseQueued = true;
     if (code === 'KeyC' || key === 'c') selfieQueued = true;
     if (code === 'KeyV' || key === 'v') outfitQueued = true;
+    if (code === 'KeyF' || key === 'f') punchQueued = true;
+    if (code === 'KeyR' || key === 'r') dodgeQueued = true;
   });
 
   window.addEventListener('keyup', (event) => {
@@ -198,11 +202,13 @@ export function createInput() {
     if (target.closest('#avatar')) return 'selfie';
     if (target.closest('#btn-outfit')) return 'outfit';
     if (target.closest('#btn-density')) return 'density';
+    if (target.closest('#btn-punch')) return 'punch';
+    if (target.closest('#btn-dodge')) return 'dodge';
     return null;
   }
 
   function blocked(target) {
-    return Boolean(target?.closest?.('#start .card, #pause .card, #bust .card, #loader, a, input, textarea'));
+    return Boolean(target?.closest?.('#start .card, #pause .card, #bust .card, #brief .card, #install-hint, #loader, a, input, textarea'));
   }
 
   window.addEventListener('pointerdown', (event) => {
@@ -241,6 +247,8 @@ export function createInput() {
     if (kind === 'selfie') selfieQueued = true;
     if (kind === 'outfit') outfitQueued = true;
     if (kind === 'density') actions.density?.();
+    if (kind === 'punch') punchQueued = true;
+    if (kind === 'dodge') dodgeQueued = true;
   }, { passive: false });
 
   window.addEventListener('pointermove', (event) => {
@@ -268,8 +276,8 @@ export function createInput() {
 
   window.addEventListener('contextmenu', (event) => event.preventDefault());
 
-  for (const button of [...Object.values(buttons), playBtn, resumeBtn, document.getElementById('btn-outfit'), document.getElementById('btn-density')]) {
-    button.addEventListener('keydown', (event) => event.preventDefault());
+  for (const button of [...Object.values(buttons), playBtn, resumeBtn, document.getElementById('btn-outfit'), document.getElementById('btn-density'), document.getElementById('btn-punch'), document.getElementById('btn-dodge')]) {
+    button?.addEventListener('keydown', (event) => event.preventDefault());
   }
 
   return {
@@ -309,6 +317,8 @@ export function createInput() {
         jump: jumpQueued,
         selfie: selfieQueued,
         outfit: outfitQueued,
+        punch: punchQueued,
+        dodge: dodgeQueued,
       };
       enterQueued = false;
       hornQueued = false;
@@ -316,6 +326,8 @@ export function createInput() {
       jumpQueued = false;
       selfieQueued = false;
       outfitQueued = false;
+      punchQueued = false;
+      dodgeQueued = false;
       return edges;
     },
     consumeLook() {

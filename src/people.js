@@ -240,8 +240,9 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
     const water = player.pos.z < 16 ? 0.55 : 1;
     player.idle = 0;
     player.yaw = dampAngle(player.yaw, Math.atan2(mx, mz), 10, dt);
-    player.pos.x += mx * speed * water * dt;
-    player.pos.z += mz * speed * water * dt;
+    const swing = (player.attackT || 0) > 0 ? 0.25 : 1;
+    player.pos.x += mx * speed * water * swing * dt;
+    player.pos.z += mz * speed * water * swing * dt;
     player.moving = true;
     player.speed = speed * water;
     player.phase += dt * speed * (run ? 2.6 : 2.15);
@@ -272,7 +273,8 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
 
   player.mesh.position.set(player.pos.x, player.pos.y, player.pos.z);
   player.mesh.rotation.set(0, player.yaw, 0);
-  const mode = !player.grounded ? 'jump' : player.moving ? (run ? 'run' : 'walk') : 'idle';
+  let mode = !player.grounded ? 'jump' : player.moving ? (run ? 'run' : 'walk') : 'idle';
+  if ((player.attackT || 0) > 0) mode = player.attackKind || 'punch';
   poseHuman(player.mesh, player.phase, mode, dt);
 }
 

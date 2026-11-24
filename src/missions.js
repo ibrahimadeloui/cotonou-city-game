@@ -64,8 +64,26 @@ export function createMissions(scene) {
       if (!state.active) return null;
       return state.active.phase === 'pickup' ? state.active.a : state.active.b;
     },
+    lock(mission) {
+      state.locked = true;
+      state.active = mission;
+    },
+    unlock() {
+      state.locked = false;
+      state.active = null;
+      state.cooldown = 3;
+      group.visible = false;
+    },
     update(dt, player, hooks) {
       const mission = state.active;
+      if (state.locked && mission) {
+        const point = mission.a;
+        group.visible = true;
+        group.position.set(point.x, 0, point.z);
+        diamond.position.y = 3.15 + Math.sin(performance.now() / 280) * 0.28;
+        diamond.rotation.y += dt * 1.4;
+        return;
+      }
       if (!mission) {
         state.cooldown -= dt;
         group.visible = false;
@@ -106,6 +124,7 @@ export function createMissions(scene) {
 
 export function missionTitle(mission) {
   if (!mission) return 'Disponible';
+  if (mission.storyTitle) return mission.storyTitle;
   if (mission.kind === 'livraison') return 'Livraison';
   if (mission.kind === 'vip') return 'Client VIP';
   return 'Course';
@@ -113,6 +132,7 @@ export function missionTitle(mission) {
 
 export function missionBody(mission) {
   if (!mission) return 'Une course va s\'afficher ici.';
+  if (mission.storyBody) return mission.storyBody;
   if (mission.phase === 'pickup') {
     if (mission.kind === 'livraison') return `Récupère le colis — ${mission.a.name}`;
     if (mission.kind === 'vip') return `Client VIP — ${mission.a.name}`;

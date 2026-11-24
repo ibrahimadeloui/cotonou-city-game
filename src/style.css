@@ -310,9 +310,107 @@ html, body {
   touch-action: none;
 }
 
+#hp {
+  margin-top: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+#hp-fill, #npc-hp-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #3dd68c;
+}
+
+#npc-hp {
+  position: absolute;
+  top: calc(18px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(280px, 70vw);
+  padding: 6px 10px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+#npc-hp.hidden { display: none; }
+
+#npc-name {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+#npc-hp .track {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+#npc-hp-fill { background: #e23d3d; }
+
+#speech {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  max-width: min(420px, 86vw);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(12, 18, 28, 0.9);
+  border: 1px solid var(--line);
+  font-size: 16px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#speech.on { opacity: 1; }
+
+#install-hint {
+  position: fixed;
+  z-index: 30;
+  top: 36%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 120px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 14px;
+  background: rgba(12, 18, 28, 0.94);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+}
+
+#install-hint.hidden { display: none; }
+
+#install-hint p { margin: 0; flex: 1 1 220px; }
+
+#install-hint button {
+  min-height: 42px;
+  border-radius: 999px;
+  border: 2px solid var(--gold);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 14px;
+}
+
 #buttons button {
-  width: 92px;
-  height: 92px;
+  width: 74px;
+  height: 74px;
   border-radius: 50%;
   border: 3px solid rgba(240, 193, 74, 0.75);
   background: rgba(12, 18, 28, 0.88);
@@ -363,20 +461,20 @@ html, body {
   background: linear-gradient(90deg, rgba(10, 14, 22, 0.88) 0%, rgba(10, 14, 22, 0.45) 46%, rgba(10, 14, 22, 0) 72%);
 }
 
-#start .card, #pause .card, #bust .card {
+#start .card, #pause .card, #bust .card, #brief .card {
   pointer-events: auto;
   margin-left: calc(28px + env(safe-area-inset-left));
   width: min(460px, calc(100% - 40px));
   padding: 28px 28px 22px;
 }
 
-#pause, #bust {
-  z-index: 30;
+#pause, #bust, #brief {
+  z-index: 40;
   justify-content: center;
   background: rgba(8, 10, 16, 0.45);
 }
 
-#pause .card, #bust .card { margin: 0; }
+#pause .card, #bust .card, #brief .card { margin: 0; }
 
 h1 {
   margin: 6px 0 8px;

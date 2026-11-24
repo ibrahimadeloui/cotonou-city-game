@@ -213,11 +213,11 @@ export function loadHumanGltf(url) {
 function bindAnimations(root, model, gltf) {
   const mixer = new AnimationMixer(model);
   const actions = {};
-  for (const name of ['Idle', 'Walk', 'Run', 'Jump', 'Death', 'Working']) {
+  for (const name of ['Idle', 'Walk', 'Run', 'Jump', 'Death', 'Working', 'Punch']) {
     const clip = clipBy(gltf, name);
     if (!clip) continue;
     const action = mixer.clipAction(clip, model);
-    if (name === 'Jump' || name === 'Death') {
+    if (name === 'Jump' || name === 'Death' || name === 'Punch') {
       action.setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
     } else {
@@ -225,18 +225,28 @@ function bindAnimations(root, model, gltf) {
     }
     actions[name] = action;
   }
+  if (actions.Punch) {
+    const kick = mixer.clipAction(clipBy(gltf, 'Punch').clone(), model);
+    kick.setLoop(LoopOnce, 1);
+    kick.clampWhenFinished = true;
+    kick.timeScale = 1.28;
+    actions.Kick = kick;
+  }
   actions.Idle.play();
   root.userData.mixer = mixer;
   root.userData.actions = actions;
   root.userData.current = 'Idle';
   root.userData.tickAnim = (mode, dt) => {
-    const map = { idle: 'Idle', walk: 'Walk', run: 'Run', jump: 'Jump', sit: 'Idle', death: 'Death', vendor: 'Working' };
+    const map = {
+      idle: 'Idle', walk: 'Walk', run: 'Run', jump: 'Jump', sit: 'Idle',
+      death: 'Death', vendor: 'Working', punch: 'Punch', kick: 'Kick',
+    };
     const nextName = map[mode] || 'Idle';
     const next = actions[nextName] || actions.Idle;
     if (root.userData.current !== nextName) {
-      next.reset().fadeIn(0.18).play();
+      next.reset().fadeIn(0.22).play();
       const prev = actions[root.userData.current];
-      if (prev && prev !== next) prev.fadeOut(0.18);
+      if (prev && prev !== next) prev.fadeOut(0.22);
       root.userData.current = nextName;
     }
     mixer.update(dt);
@@ -345,10 +355,13 @@ export function createCrowd(scene, paths, quality, rand, gltf) {
       robe,
     };
     const mesh = createRiggedCharacter(gltf, { shadows: false, colors });
+    mesh.scale.setScalar(0.94 + rand() * 0.12);
     mesh.position.set(spec.x, 0, spec.z);
     mesh.rotation.y = spec.yaw;
     scene.add(mesh);
     const path = spec.path || paths[i % paths.length];
+    const temper = rand() < 0.12 ? 'fight' : rand() < 0.38 ? 'flee' : 'calm';
+    const hp = temper === 'fight' ? 46 : 28;
     peds.push({
       mesh,
       path,
@@ -362,6 +375,12 @@ export function createCrowd(scene, paths, quality, rand, gltf) {
       pos: { x: spec.x, z: spec.z },
       behavior: spec.behavior,
       slot: i,
+      temper,
+      hp,
+      hpMax: hp,
+      cool: 0,
+      stun: 0,
+      name: '',
     });
   }
 
