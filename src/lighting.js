@@ -63,8 +63,11 @@ const skyFragment = `
     vec3 col = mix(bottomColor, horizonColor, smoothstep(-0.22, 0.08, h));
     col = mix(col, topColor, smoothstep(0.0, 0.55, h));
     float sunDot = max(dot(dir, normalize(sunDir)), 0.0);
-    col += sunColor * pow(sunDot, 90.0) * 1.6;
-    col += sunColor * pow(sunDot, 7.0) * 0.38;
+    float haze = exp(-max(h, 0.0) * 1.6);
+    col += sunColor * pow(sunDot, 180.0) * 2.4;
+    col += sunColor * pow(sunDot, 8.0) * 0.55 * haze;
+    col += sunColor * pow(sunDot, 2.0) * 0.12 * haze;
+    col = mix(col, horizonColor, haze * 0.18);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

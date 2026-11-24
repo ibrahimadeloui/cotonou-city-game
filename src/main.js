@@ -2,20 +2,23 @@ import './style.css';
 import '@fontsource/oswald/latin-700.css';
 import {
   ACESFilmicToneMapping,
+  CircleGeometry,
+  EquirectangularReflectionMapping,
+  Mesh,
+  MeshBasicMaterial,
   PCFSoftShadowMap,
   PerspectiveCamera,
   PMREMGenerator,
   Scene,
   SRGBColorSpace,
-  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import sunsetHdr from './assets/hdr/venice_sunset_1k.hdr?url';
+import dayHdr from './assets/hdr/kloofendal_day_1k.hdr?url';
+import { createPost } from './post.js';
 import { createAudio } from './audio.js';
 import { createCameraRig } from './camera.js';
 import {
@@ -72,7 +75,7 @@ function pixelCap() {
 }
 const scene = new Scene();
 const camera = new PerspectiveCamera(68, 1, 0.18, 1200);
-const renderer = new WebGLRenderer({
+let renderer = new WebGLRenderer({
   antialias: quality.antialias,
   powerPreference: 'high-performance',
   stencil: false,
@@ -80,24 +83,118 @@ const renderer = new WebGLRenderer({
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.toneMapping = ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.25;
+let rendererBackend = 'webgl2';
 const pmrem = new PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const envMaps = { day: envTex, sunset: envTex };
 scene.environment = quality.tier === 'basse' ? null : envTex;
 pmrem.dispose();
-let composer = null;
+let post = null;
 
 function present() {
-  if (quality.tier !== 'haute') {
+  const heavy = quality.tier === 'haute'
+    || (!quality.mobile && (quality.tier === 'moyenne' || quality.tier === 'basse'));
+  if (!heavy || quality.post === 'off' || rendererBackend === 'webgpu') {
+    if (rendererBackend === 'webgpu' && quality.tier !== 'basse' && quality.post !== 'off') {
+      renderWebGPUPost();
+      return;
+    }
     renderer.render(scene, camera);
     return;
   }
-  if (!composer) {
-    composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new Vector2(window.innerWidth, window.innerHeight), 0.16, 0.38, 0.88));
-    composer.addPass(new OutputPass());
+  try {
+    if (!post) post = createPost(renderer, scene, camera, quality);
+    post.render();
+  } catch (error) {
+    console.warn(error);
+    quality.post = 'off';
+    renderer.render(scene, camera);
   }
-  composer.render();
+}
+
+let webgpuPost = null;
+let webgpuPostFailed = false;
+function renderWebGPUPost() {
+  if (webgpuPostFailed) {
+    renderer.render(scene, camera);
+    return;
+  }
+  if (webgpuPost) {
+    try {
+      webgpuPost.render();
+    } catch (error) {
+      console.warn(error);
+      webgpuPostFailed = true;
+      renderer.render(scene, camera);
+    }
+    return;
+  }
+  if (renderWebGPUPost.loading) {
+    renderer.render(scene, camera);
+    return;
+  }
+  renderWebGPUPost.loading = true;
+  import('three/webgpu').then((GPU) => {
+    const scenePass = GPU.pass(scene, camera);
+    const color = scenePass.getTextureNode();
+    const graded = refs.grade === 'sunset' ? color.mul(GPU.vec3(1.08, 0.9, 0.82)) : color;
+    webgpuPost = new GPU.PostProcessing(renderer);
+    webgpuPost.outputNode = graded;
+  }).catch((error) => {
+    console.warn(error);
+    webgpuPostFailed = true;
+  });
+  renderer.render(scene, camera);
+}
+
+async function mountWebGPU() {
+  if (!navigator.gpu) return;
+  try {
+    const { WebGPURenderer } = await import('three/webgpu');
+    const next = new WebGPURenderer({
+      antialias: false,
+      powerPreference: 'high-performance',
+      stencil: false,
+    });
+    await Promise.race([
+      next.init(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('webgpu')), 1200)),
+    ]);
+    next.outputColorSpace = SRGBColorSpace;
+    next.toneMapping = ACESFilmicToneMapping;
+    next.toneMappingExposure = renderer.toneMappingExposure;
+    next.setPixelRatio(renderer.getPixelRatio());
+    next.setSize(window.innerWidth, Math.max(1, window.innerHeight), false);
+    next.shadowMap.enabled = renderer.shadowMap.enabled;
+    next.shadowMap.type = PCFSoftShadowMap;
+    next.domElement.style.touchAction = 'none';
+    next.domElement.style.width = '100%';
+    next.domElement.style.height = '100%';
+    rendererBackend = 'webgpu';
+    scene.environment = null;
+    renderer.domElement.replaceWith(next.domElement);
+    renderer.dispose();
+    renderer = next;
+    post = null;
+  } catch (error) {
+    console.warn('WebGPU indisponible, repli WebGL2.', error);
+  }
+}
+
+function loadHdri() {
+  const loader = new RGBELoader();
+  const pm = new PMREMGenerator(renderer);
+  const apply = (name, texture) => {
+    texture.mapping = EquirectangularReflectionMapping;
+    const target = pm.fromEquirectangular(texture);
+    envMaps[name] = target.texture;
+    texture.dispose();
+    if (quality.tier !== 'basse' && (name === 'sunset') === (refs.grade === 'sunset')) {
+      scene.environment = envMaps[name];
+    }
+  };
+  loader.load(dayHdr, (texture) => apply('day', texture));
+  loader.load(sunsetHdr, (texture) => apply('sunset', texture));
 }
 renderer.setPixelRatio(quality.pixelRatio);
 renderer.shadowMap.enabled = quality.shadows;
@@ -124,6 +221,10 @@ applyBrightness(loadBrightness());
 const city = createCity(scene, refs, quality);
 const traffic = createTraffic(scene, city.graph, quality, Math.random);
 async function startGame() {
+// WebGPURenderer (three r170) ne dessine pas les ShaderMaterial de l'océan et du ciel.
+// Tant que ces shaders ne sont pas en TSL, le repli WebGL2 reste le rendu actif.
+if (localStorage.getItem('cotonou-webgpu') === '1') await mountWebGPU();
+loadHdri();
 const humanGltf = await loadHumanGltf(humanUrl);
 const ibrahim = createRiggedCharacter(humanGltf, {
   player: true,
@@ -131,6 +232,13 @@ const ibrahim = createRiggedCharacter(humanGltf, {
   shadows: quality.shadows,
 });
 scene.add(ibrahim);
+const contact = new Mesh(
+  new CircleGeometry(0.7, 18),
+  new MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }),
+);
+contact.rotation.x = -Math.PI / 2;
+contact.position.y = 0.035;
+ibrahim.add(contact);
 const player = {
   mesh: ibrahim,
   pos: { x: SPAWN.x, y: 0, z: SPAWN.z },
@@ -252,7 +360,10 @@ function applyTier(id) {
     }
     refs.sun.shadow.radius = quality.tier === 'haute' ? 2.5 : 1;
   }
-  scene.environment = quality.tier === 'basse' ? null : envTex;
+  scene.environment = quality.tier === 'basse' ? null : (refs.grade === 'sunset' ? envMaps.sunset : envMaps.day);
+  if (scene.environmentRotation) scene.environmentRotation.y = refs.grade === 'sunset' ? 0.4 : 1.8;
+  post?.setTier(quality.tier);
+  quality.post = quality.tier;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelCap()));
   if (quality.tier === 'basse') peds.density = 0.45;
   const button = document.getElementById('btn-tier');
@@ -267,6 +378,9 @@ function applyGrade(next) {
   const button = document.getElementById('btn-grade');
   if (button) button.textContent = refs.grade === 'sunset' ? 'Lumière : coucher de soleil' : 'Lumière : jour';
   localStorage.setItem('cotonou-grade', refs.grade);
+  scene.environment = quality.tier === 'basse' ? null : (refs.grade === 'sunset' ? envMaps.sunset : envMaps.day);
+  if (scene.environmentRotation) scene.environmentRotation.y = refs.grade === 'sunset' ? 0.4 : 1.8;
+  post?.setGrade(refs.grade);
 }
 
 applyTier(quality.tier);
@@ -278,6 +392,12 @@ document.getElementById('btn-tier')?.addEventListener('click', () => {
 document.getElementById('btn-grade')?.addEventListener('click', () => {
   applyGrade(refs.grade === 'sunset' ? 'day' : 'sunset');
 });
+document.getElementById('btn-credits')?.addEventListener('click', () => {
+  document.getElementById('credits')?.classList.remove('hidden');
+});
+document.getElementById('credits-close')?.addEventListener('click', () => {
+  document.getElementById('credits')?.classList.add('hidden');
+});
 const joySizeInput = document.getElementById('joy-size');
 const savedJoy = Number(localStorage.getItem('cotonou-joy'));
 const joySize = Number.isFinite(savedJoy) && savedJoy >= 80 ? savedJoy : 96;
@@ -286,7 +406,7 @@ input.setJoySize(joySize);
 joySizeInput?.addEventListener('input', (event) => input.setJoySize(event.target.value));
 
 let cycle = 0.2;
-const fps = { t: 0, n: 0, level: 1, hide: 140 };
+const fps = { t: 0, n: 0, level: 1, hide: 140, last: 0 };
 let driveThrottle = 0;
 let boostTank = 1;
 let started = false;
@@ -309,7 +429,7 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
-  composer?.setSize(width, height);
+  post?.setSize(width, height);
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
 }
@@ -492,6 +612,9 @@ window.__cotonou = {
   get maxYawStep() { return player.maxYawStep || 0; },
   resetYawStep() { player.maxYawStep = 0; },
   knob() { return input.knob(); },
+  get tier() { return quality.tier; },
+  get fps() { return fps.last || 0; },
+  get rendererKind() { return rendererBackend; },
   nearest() {
     let best = null;
     let bestD = Infinity;
@@ -668,7 +791,11 @@ function frame(now) {
     const rate = fps.n / fps.t;
     fps.t = 0;
     fps.n = 0;
-    if (rate < 50 && fps.level > 0) tuneQuality(fps.level - 1);
+    fps.last = rate;
+    if (rate < 30 && quality.tier === 'haute') {
+      quality.post = 'off';
+      post = null;
+    } else if (rate < 45 && fps.level > 0) tuneQuality(fps.level - 1);
     else if (rate > 58 && fps.level < 2) tuneQuality(fps.level + 1);
   }
   cycle = (cycle + dt / CYCLE_SECONDS) % 1;

@@ -608,20 +608,20 @@ label.bright {
   background: linear-gradient(90deg, rgba(10, 14, 22, 0.88) 0%, rgba(10, 14, 22, 0.45) 46%, rgba(10, 14, 22, 0) 72%);
 }
 
-#start .card, #pause .card, #bust .card, #brief .card, #result .card {
+#start .card, #pause .card, #credits .card, #bust .card, #brief .card, #result .card {
   pointer-events: auto;
   margin-left: calc(28px + env(safe-area-inset-left));
   width: min(460px, calc(100% - 40px));
   padding: 28px 28px 22px;
 }
 
-#pause, #bust, #brief, #result {
+#pause, #bust, #brief, #result, #credits {
   z-index: 40;
   justify-content: center;
   background: rgba(8, 10, 16, 0.45);
 }
 
-#pause .card, #bust .card, #brief .card, #result .card { margin: 0; }
+#pause .card, #credits .card, #bust .card, #brief .card, #result .card { margin: 0; }
 
 #wanted.blink { animation: blink 0.45s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
@@ -653,7 +653,7 @@ button.primary, #resume {
 
 button.primary.held, #resume.held, #btn-outfit.held, #btn-density.held { filter: brightness(1.08); transform: scale(0.98); }
 
-#btn-outfit, #btn-density, #btn-steer-mode, #btn-grade, #btn-tier {
+#btn-outfit, #btn-density, #btn-steer-mode, #btn-grade, #btn-tier, #btn-credits, #credits-close {
   margin-top: 12px;
   margin-right: 8px;
   width: auto;
@@ -663,7 +663,7 @@ button.primary.held, #resume.held, #btn-outfit.held, #btn-density.held { filter:
   border: 2px solid var(--gold);
 }
 
-#start .card, #pause .card {
+#start .card, #pause .card, #credits .card {
   max-height: calc(100dvh - 24px);
   overflow: auto;
 }

@@ -151,7 +151,22 @@
         <label class="bright" for="brightness">Luminosité
           <input id="brightness" type="range" min="0.65" max="1.8" step="0.05" value="1.25">
         </label>
+        <button type="button" id="btn-credits">Crédits</button>
         <button type="button" id="resume">Reprendre</button>
+      </div>
+    </div>
+    <div id="credits" class="overlay hidden">
+      <div class="card panel">
+        <p class="eyebrow">Sources</p>
+        <h2>Crédits</h2>
+        <ul class="controls">
+          <li>HDRI : Poly Haven, CC0 — venice_sunset et kloofendal_48d, 1K.</li>
+          <li>Personnage : Quaternius, Animated Human, CC0. Visage : photo d'Ibrahim.</li>
+          <li>Bâtiments : empreintes OpenStreetMap à Cadjehoun (contributeurs OSM, ODbL), extrudées dans la ville.</li>
+          <li>Google Open Buildings v3 (CC-BY-4.0) n'est pas dans le paquet : une tuile du Bénin dépasse la mémoire d'un téléphone.</li>
+          <li>Rendu : Three.js. WebGPU quand le téléphone l'a, sinon WebGL2. Haute : GTAO, SMAA (TRAA sur WebGPU), bloom, LUT. Moyenne bureau : SSAO, bloom, LUT. Basse : ACES, bloom léger hors mobile.</li>
+        </ul>
+        <button type="button" id="credits-close">Fermer</button>
       </div>
     </div>
     <div id="bust" class="overlay hidden">
