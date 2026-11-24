@@ -22,7 +22,9 @@ import { createInput } from './input.js';
 import { createLighting } from './lighting.js';
 import { createMissions } from './missions.js';
 import faceUrl from './assets/ibrahim-face.jpg';
-import { createIbrahim, createPedestrians, updatePeds, updatePlayer } from './people.js';
+import humanUrl from './assets/human.glb?url';
+import { createCrowd, createRiggedCharacter, loadHumanGltf } from './humanoid.js';
+import { updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
 import { formatFCFA, resolveCircle } from './utils.js';
 import { createTraffic, horn, updateVehicles } from './vehicles.js';
@@ -56,7 +58,13 @@ document.getElementById('app').appendChild(renderer.domElement);
 const lighting = createLighting(scene, refs, quality);
 const city = createCity(scene, refs, quality);
 const traffic = createTraffic(scene, city.graph, quality, Math.random);
-const ibrahim = createIbrahim(quality.shadows, faceUrl);
+async function startGame() {
+const humanGltf = await loadHumanGltf(humanUrl);
+const ibrahim = createRiggedCharacter(humanGltf, {
+  player: true,
+  faceUrl,
+  shadows: quality.shadows,
+});
 scene.add(ibrahim);
 const player = {
   mesh: ibrahim,
@@ -72,7 +80,17 @@ const player = {
 ibrahim.position.set(player.pos.x, 0, player.pos.z);
 ibrahim.rotation.y = player.yaw;
 
-const peds = createPedestrians(scene, city.paths, quality.peds, Math.random, quality.shadows);
+const crowd = createCrowd(scene, city.paths, quality, Math.random, humanGltf);
+const peds = crowd.peds;
+const DENSITIES = [
+  { value: 1, label: 'Foule dense' },
+  { value: 0.7, label: 'Foule moyenne' },
+  { value: 0.45, label: 'Foule légère' },
+];
+let densityIndex = quality.mobile ? 1 : 0;
+peds.density = DENSITIES[densityIndex].value;
+const densityButton = document.getElementById('btn-density');
+if (densityButton) densityButton.textContent = DENSITIES[densityIndex].label;
 const missions = createMissions(scene);
 const input = createInput();
 input.setActions({
@@ -95,6 +113,12 @@ input.setActions({
     ibrahim.userData.setOutfit(waxOutfit);
     const button = document.getElementById('btn-outfit');
     if (button) button.textContent = waxOutfit ? 'Tenue wax' : 'Tenue ville';
+  },
+  density() {
+    densityIndex = (densityIndex + 1) % DENSITIES.length;
+    peds.density = DENSITIES[densityIndex].value;
+    const button = document.getElementById('btn-density');
+    if (button) button.textContent = DENSITIES[densityIndex].label;
   },
 });
 const audio = createAudio();
@@ -342,6 +366,7 @@ function frame(now) {
     forward: sample.forward,
     right: sample.right,
     handbrake: Boolean(player.vehicle) && (sample.space || sample.runHeld),
+    cameraYaw: rig.state.yaw,
   };
   updateVehicles(traffic, dt, driveInput, player, city.collision, refs.nightHead || 0, {
     onCrash(other, speed) {
@@ -356,7 +381,8 @@ function frame(now) {
     player.yaw = player.vehicle.yaw;
   }
 
-  updatePeds(peds, dt, player, city.paths, () => addWanted('Tu as renversé un piéton.'));
+  updatePeds(peds, dt, player, city.paths, () => addWanted('Tu as renversé un piéton.'), camera, quality);
+  crowd.updateLod(camera, peds.frame || 0);
 
   bumpCool = Math.max(0, bumpCool - dt);
   if (!player.vehicle) {
@@ -451,3 +477,10 @@ function frame(now) {
 }
 
 requestAnimationFrame(frame);
+}
+
+startGame().catch((error) => {
+  console.error(error);
+  const loader = document.getElementById('loader');
+  if (loader) loader.textContent = 'Le personnage n’a pas pu être chargé.';
+});
