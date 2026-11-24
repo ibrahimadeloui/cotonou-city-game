@@ -172,8 +172,41 @@ async function exercise(page, label) {
   await page.waitForFunction(() => document.getElementById('pause').classList.contains('hidden'));
   assert((await actions(page)).includes('resume'), `${label}: Reprendre`);
 
+  await assertFluid(page, label);
   await driveLayout(page, label, 'suv');
   await driveLayout(page, label, 'zem');
+}
+
+async function assertFluid(page, label) {
+  await page.evaluate(() => window.__cotonou.resetYawStep());
+  const origin = await page.evaluate(() => window.__cotonou.knob());
+  const joy = await page.locator('#joystick').boundingBox();
+  assert(joy, `${label}: joystick invisible`);
+  const client = await page.context().newCDPSession(page);
+  const cx = joy.x + joy.width / 2;
+  const cy = joy.y + joy.height / 2;
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: cx, y: cy, id: 7 }],
+  });
+  let prev = await page.evaluate(() => window.__cotonou.knob());
+  let maxJump = 0;
+  for (let i = 1; i <= 6; i += 1) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: cx + i * 6, y: cy, id: 7 }],
+    });
+    await page.waitForTimeout(45);
+    const knob = await page.evaluate(() => window.__cotonou.knob());
+    maxJump = Math.max(maxJump, Math.hypot(knob.x - prev.x, knob.y - prev.y));
+    assert(Math.abs(knob.left - origin.left) < 1.5 && Math.abs(knob.top - origin.top) < 1.5, `${label}: le joystick se recentre en glissant`);
+    prev = knob;
+  }
+  await page.waitForTimeout(320);
+  const step = await page.evaluate(() => window.__cotonou.maxYawStep);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert(maxJump < 22, `${label}: le bouton du joystick saute (${maxJump.toFixed(1)} px)`);
+  assert(step < 0.36, `${label}: la rotation dépasse le plafond (${step.toFixed(3)} rad/frame)`);
 }
 
 async function driveLayout(page, label, type) {

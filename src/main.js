@@ -488,6 +488,10 @@ window.__cotonou = {
   get exposure() { return renderer.toneMappingExposure; },
   get actions() { return actionLog.slice(); },
   get runHeld() { return input.held().run; },
+  get yaw() { return player.yaw; },
+  get maxYawStep() { return player.maxYawStep || 0; },
+  resetYawStep() { player.maxYawStep = 0; },
+  knob() { return input.knob(); },
   nearest() {
     let best = null;
     let bestD = Infinity;
@@ -609,7 +613,7 @@ function frame(now) {
   const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));
   last = now;
   const time = now / 1000;
-  const sample = input.sample();
+  const sample = input.sample(dt);
   const edges = input.consume();
   const look = input.consumeLook();
 
@@ -825,7 +829,7 @@ function frame(now) {
   const face = player.vehicle ? player.vehicle.yaw : player.yaw;
   const moving = player.vehicle ? Math.abs(player.vehicle.speed) > 0.8 : player.moving;
   const dist = player.vehicle ? SPECS[player.vehicle.type].cam : 6.5;
-  rig.update(dt, focus, face, moving, dist, city.collision, performance.now() < selfieUntil && !player.vehicle);
+  rig.update(dt, focus, face, moving, dist, city.collision, performance.now() < selfieUntil && !player.vehicle, player.vehicle ? 4.2 : 2.4);
   const speedNow = player.vehicle ? Math.abs(player.vehicle.speed) : 0;
   const fov = 68 + Math.min(7, speedNow * 0.22);
   if (Math.abs(camera.fov - fov) > 0.15) {

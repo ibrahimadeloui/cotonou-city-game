@@ -10,6 +10,13 @@ export function createInput() {
 
   let joyX = 0;
   let joyY = 0;
+  let aimX = 0;
+  let aimY = 0;
+  let visX = 0;
+  let visY = 0;
+  let visAimX = 0;
+  let visAimY = 0;
+  let stickLive = false;
   let analog = false;
   let runHeld = false;
   let enterQueued = false;
@@ -50,6 +57,15 @@ export function createInput() {
   const resumeBtn = document.getElementById('resume');
 
   function resetStickVisual() {
+    aimX = 0;
+    aimY = 0;
+    joyX = 0;
+    joyY = 0;
+    visX = 0;
+    visY = 0;
+    visAimX = 0;
+    visAimY = 0;
+    stickLive = false;
     stick.style.transform = 'translate(0px, 0px)';
     joystick.classList.remove('active');
     joystick.style.left = '';
@@ -57,12 +73,36 @@ export function createInput() {
     joystick.style.bottom = '';
   }
 
+  function buzz(ms) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  }
+
+  function ease(current, target, lambda, dt) {
+    return current + (target - current) * (1 - Math.exp(-lambda * Math.max(0, dt)));
+  }
+
+  function tickStick(dt) {
+    const step = Number.isFinite(dt) ? dt : 1 / 60;
+    joyX = ease(joyX, aimX, 12, step);
+    joyY = ease(joyY, aimY, 12, step);
+    if (Math.hypot(joyX, joyY) < 0.012) {
+      joyX = 0;
+      joyY = 0;
+    }
+    visX = ease(visX, visAimX, 20, step);
+    visY = ease(visY, visAimY, 20, step);
+    if (!stickLive && Math.hypot(visX, visY) < 0.8) {
+      visX = 0;
+      visY = 0;
+      joystick.classList.remove('active');
+    }
+    stick.style.transform = `translate(${visX.toFixed(2)}px, ${visY.toFixed(2)}px)`;
+  }
+
   function releaseAll() {
     downCodes.clear();
     downKeys.clear();
     pointers.clear();
-    joyX = 0;
-    joyY = 0;
     analog = false;
     runHeld = false;
     lookDx = 0;
@@ -141,35 +181,33 @@ export function createInput() {
   }
 
   function updateJoy(pointer) {
-    // clientX grows to the right, clientY grows downward.
-    // joyX stays positive when the knob moves right — same sign as D /
-    // ArrowRight. joyY is negated so up is positive forward.
-    // Screen-right is cameraPlanarBasis().right = cross(forward, up).
-    // Do not negate joyX as well.
+    // Origine figée au premier contact. clientX vers la droite, clientY vers le bas.
+    // joyX > 0 = bouton à droite, même signe que D. joyY > 0 = bouton vers le haut.
+    // Ne pas inverser joyX : la droite écran est cameraPlanarBasis().right.
     const dx = pointer.x - pointer.cx;
     const dy = pointer.y - pointer.cy;
-    const max = pointer.max || 60;
-    const mag = Math.hypot(dx, dy) || 1;
+    const max = pointer.max || 40;
+    const mag = Math.hypot(dx, dy);
     const clamped = Math.min(mag, max);
-    const nx = (dx / mag) * (clamped / max);
-    const ny = -((dy / mag) * (clamped / max));
+    const nx = mag > 0 ? (dx / mag) * (clamped / max) : 0;
+    const ny = mag > 0 ? -((dy / mag) * (clamped / max)) : 0;
     const strength = Math.hypot(nx, ny);
-    let targetX = 0;
-    let targetY = 0;
-    if (strength >= 0.08) {
-      const scale = Math.min(1, (strength - 0.08) / 0.92);
-      targetX = (nx / strength) * scale;
-      targetY = (ny / strength) * scale;
+    const dead = 0.14;
+    if (strength < dead) {
+      aimX = 0;
+      aimY = 0;
+      analog = false;
+    } else {
+      const t = (strength - dead) / (1 - dead);
+      const curved = t * t;
+      aimX = (nx / strength) * curved;
+      aimY = (ny / strength) * curved;
+      analog = true;
     }
-    joyX += (targetX - joyX) * 0.45;
-    joyY += (targetY - joyY) * 0.45;
-    if (Math.hypot(joyX, joyY) < 0.02) {
-      joyX = 0;
-      joyY = 0;
-    }
-    analog = true;
+    visAimX = nx * max;
+    visAimY = -ny * max;
+    stickLive = true;
     joystick.classList.add('active');
-    stick.style.transform = `translate(${joyX * max}px, ${-joyY * max}px)`;
   }
 
   function syncRun() {
@@ -192,10 +230,12 @@ export function createInput() {
     pointers.delete(id);
     if (pointer.button) pointer.button.classList.remove('held');
     if (pointer.kind === 'joy' && ![...pointers.values()].some((item) => item.kind === 'joy')) {
-      joyX = 0;
-      joyY = 0;
+      aimX = 0;
+      aimY = 0;
+      visAimX = 0;
+      visAimY = 0;
+      stickLive = false;
       analog = false;
-      resetStickVisual();
     }
     if (pointer.kind === 'look') {
       /* le delta déjà accumulé sera lu par consumeLook */
@@ -248,7 +288,10 @@ export function createInput() {
     }
     event.preventDefault();
     const button = event.target.closest?.('button') || null;
-    if (button) button.classList.add('held');
+    if (button) {
+      button.classList.add('held');
+      buzz(10);
+    }
     const origin = (kind === 'joy' || kind === 'joy-pad')
       ? joystickCenter()
       : null;
@@ -318,7 +361,8 @@ export function createInput() {
       actions.density = next.density || null;
       actions.steer = next.steer || null;
     },
-    sample() {
+    sample(dt) {
+      tickStick(dt);
       const forward = (has(['KeyW', 'ArrowUp'], ['w', 'z', 'arrowup']) ? 1 : 0)
         - (has(['KeyS', 'ArrowDown'], ['s', 'arrowdown']) ? 1 : 0);
       const right = (has(['KeyD', 'ArrowRight'], ['d', 'arrowright']) ? 1 : 0)
@@ -381,6 +425,16 @@ export function createInput() {
     },
     held() {
       return { run: runHeld };
+    },
+    knob() {
+      const rect = joystick.getBoundingClientRect();
+      return {
+        x: visX,
+        y: visY,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+      };
     },
     setJoySize(px) {
       const size = Math.max(80, Math.min(130, Math.round(px)));
