@@ -40,6 +40,16 @@ Le projet est un site statique Vite, sans configuration supplémentaire.
 
 Aucun serveur, aucune variable d'environnement, aucune base de données.
 
+## Hors ligne
+
+Après un premier chargement, le jeu se met en cache (service worker) : JavaScript, modèle 3D, visage, voix. Il se lance ensuite sans réseau, y compris en mode avion. Sur iPhone : Partager, puis **Ajouter à l'écran d'accueil**. Sur Android : **Installer**.
+
+## Missions, bagarre, voix
+
+Huit missions enchaînées (zem chronométré, pagne volé à Dantokpa, convoi du SUV vers le port, course de la Route des Pêches, protection d'un étal à Fidjrossè, fuite devant la police, patron du marché, retour à la Marina). La progression et l'argent sont dans le `localStorage`, donc aussi hors ligne. **F** ou le bouton **Frapper** enchaîne poing et coup de pied, **R** esquive. Frapper un passant augmente le niveau recherché. À zéro point de vie, Ibrahim revient de l'hôpital. Les répliques (français, avec quelques tours béninois) sont des fichiers audio dans le jeu, avec sous-titres.
+
+Les personnages restent le modèle **Quaternius** (CC0), léger pour un téléphone. Ce n'est pas un rendu façon grand jeu cinématographique : pas de visages uniques filmés, pas de ville photogrammétrée. La lumière reste simple pour que Safari iPhone et Chrome Android tiennent le rythme.
+
 ## Contrôles
 
 ### Clavier
@@ -54,6 +64,8 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 | Monter / descendre d'un véhicule | E |
 | Frein à main | Espace (en véhicule) |
 | Klaxon | H |
+| Frapper (poing, puis pied) | F, ou le bouton Frapper |
+| Esquiver | R, ou le bouton Esquive |
 | Selfie | C, ou le portrait en haut à gauche |
 | Changer de tenue | V, ou Tenue wax dans le menu pause |
 | Densité des passants | Foule dense / moyenne / légère, dans le menu pause |

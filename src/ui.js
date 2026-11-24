@@ -28,6 +28,17 @@ export function createUi() {
     },
     update(game, camera) {
       if (performance.now() > flashUntil) flash.classList.remove('on');
+      const hpFill = document.getElementById('hp-fill');
+      if (hpFill) hpFill.style.width = `${Math.max(0, Math.min(100, game.player.hp ?? 100))}%`;
+      const foeEl = document.getElementById('npc-hp');
+      if (foeEl) {
+        foeEl.classList.toggle('hidden', !game.foe);
+        if (game.foe) {
+          const foeFill = document.getElementById('npc-hp-fill');
+          if (foeFill) foeFill.style.width = `${Math.max(0, (game.foe.hp / game.foe.max) * 100)}%`;
+          setText('npc-name', game.foe.name);
+        }
+      }
       setText('money', formatFCFA(game.money));
       setText('jobs', `Courses : ${game.missions.state.jobs}`);
       setText('clock', formatHour(game.hour));

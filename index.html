@@ -7,6 +7,9 @@
     <meta name="description" content="Cotonou City — ville ouverte au bord de l'Atlantique. Incarne Ibrahim." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cotonou City" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>Cotonou City</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23143032'/%3E%3Cpath d='M8 40h48v6H8z' fill='%23f0c14a'/%3E%3Ccircle cx='18' cy='28' r='6' fill='%23008751'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23e8112d'/%3E%3Ccircle cx='46' cy='29' r='5' fill='%23fcd116'/%3E%3C/svg%3E" />
   </head>
@@ -23,6 +26,7 @@
             <p class="eyebrow">Cotonou City</p>
             <h2 id="player-name">Ibrahim</h2>
             <p id="money">2&nbsp;500&nbsp;FCFA</p>
+            <div id="hp" aria-label="Santé"><span id="hp-fill"></span></div>
             <p id="district">Route des Pêches</p>
             <p id="jobs">Courses : 0</p>
             <p id="clock">16:51</p>
@@ -41,6 +45,11 @@
         <p>Recherché</p>
         <div id="stars">☆☆☆☆☆</div>
       </section>
+      <div id="npc-hp" class="hidden" aria-label="Adversaire">
+        <em id="npc-name">Adversaire</em>
+        <div class="track"><span id="npc-hp-fill"></span></div>
+      </div>
+      <p id="speech"></p>
       <p id="toast"></p>
       <p id="radio"></p>
       <p id="speed"></p>
@@ -54,6 +63,14 @@
       <div id="joy-pad" aria-hidden="true"></div>
       <div id="joystick" aria-label="Joystick"><div id="stick"></div></div>
       <div id="buttons">
+        <button type="button" id="btn-punch" aria-label="Frapper">
+          <span>Frapper</span>
+          <small>F</small>
+        </button>
+        <button type="button" id="btn-dodge" aria-label="Esquiver">
+          <span>Esquive</span>
+          <small>R</small>
+        </button>
         <button type="button" id="btn-run" aria-label="Courir">
           <span id="run-label">Courir</span>
           <small id="run-key">Maj</small>
@@ -81,13 +98,14 @@
         <ul class="controls desktop-controls">
           <li>ZQSD, WASD ou flèches — marcher</li>
           <li>Maj — courir · Espace — sauter, ou frein à main en véhicule</li>
-          <li>E — monter ou descendre · H — klaxon</li>
+          <li>E — monter ou descendre · H — klaxon · F — frapper · R — esquiver</li>
           <li>Souris glissée — caméra · Échap — pause</li>
         </ul>
         <ul class="controls mobile-controls">
           <li>Zone gauche : marcher. Pousse à fond pour courir, ou garde le bouton Courir.</li>
           <li>Monter / Sortir pour le SUV noir et les zemidjans jaunes. Klaxon et Pause à droite.</li>
           <li>Glisse à droite de l'écran pour tourner la caméra. Le portrait en haut à gauche lance un selfie.</li>
+          <li>iPhone : Partager, puis Ajouter à l'écran d'accueil. Android : Installer. Le jeu marche ensuite hors ligne.</li>
         </ul>
       </div>
     </div>
@@ -112,6 +130,19 @@
         <p id="bust-text"></p>
         <p>Ibrahim est relâché à Fidjrossè.</p>
       </div>
+    </div>
+    <div id="brief" class="overlay hidden">
+      <div class="card panel">
+        <p class="eyebrow" id="brief-kicker">Mission</p>
+        <h2 id="brief-title">Briefing</h2>
+        <p id="brief-text"></p>
+        <button type="button" class="primary" id="brief-go">C'est parti</button>
+      </div>
+    </div>
+    <div id="install-hint" class="hidden">
+      <p id="install-text"></p>
+      <button type="button" id="install-go" hidden>Installer</button>
+      <button type="button" id="install-dismiss">Compris</button>
     </div>
     <div id="loader">Chargement de Cotonou…</div>
     <script type="module" src="/src/main.js"></script>
