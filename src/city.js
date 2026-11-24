@@ -6,6 +6,7 @@ import {
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   Float32BufferAttribute,
   Group,
   InstancedMesh,
@@ -19,6 +20,7 @@ import {
   Quaternion,
   RepeatWrapping,
   ShaderMaterial,
+  Shape,
   SphereGeometry,
   Sprite,
   SpriteMaterial,
@@ -36,6 +38,8 @@ import {
   cellBounds,
   halfZ,
 } from './config.js';
+import buildingsUrl from './assets/cotonou-buildings.json';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addBox, coloredBox, mergeColored, mulberry32, paint } from './utils.js';
 
 const UP = new Vector3(0, 1, 0);
@@ -168,6 +172,7 @@ export function createCity(scene, refs, quality) {
   addAirport(geoms, collision);
 
   buildBuildingMeshes(scene, buckets, refs.windowMat);
+  addFootprintBlocks(scene, geoms, collision, rand, refs.windowMat);
   addLamps(scene, geoms, refs.lampMat);
   collectPalmSpots(palmSpots, rand);
   addPalms(scene, collision, palmSpots, quality.palms);
@@ -359,6 +364,112 @@ function pickArch(ix, iz, rand) {
   if (r < 0.52) return 'house2';
   if (r < 0.74) return 'shop';
   return 'block';
+}
+
+function footprintTemplates() {
+  const list = buildingsUrl.buildings || [];
+  return list
+    .map((item) => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const [x, z] of item.ring) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
+      }
+      const w = Math.max(0.8, maxX - minX);
+      const d = Math.max(0.8, maxZ - minZ);
+      if (w > 80 || d > 80) return null;
+      return item.ring.map(([x, z]) => [(x - minX) / w - 0.5, (z - minZ) / d - 0.5]);
+    })
+    .filter(Boolean);
+}
+
+const FOOTPRINTS = footprintTemplates();
+
+function extrudeRing(ring, height) {
+  const shape = new Shape();
+  shape.moveTo(ring[0][0], -ring[0][1]);
+  for (let i = 1; i < ring.length; i += 1) shape.lineTo(ring[i][0], -ring[i][1]);
+  const geom = new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 });
+  geom.rotateX(Math.PI / 2);
+  geom.translate(0, 0, 0);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+function stampRing(template, x, z, w, d, rot) {
+  const c = Math.cos(rot);
+  const s = Math.sin(rot);
+  return template.map(([lx, lz]) => {
+    const X = lx * w;
+    const Z = lz * d;
+    return [x + X * c - Z * s, z + X * s + Z * c];
+  });
+}
+
+function addFootprintBlocks(scene, geoms, collision, rand, material) {
+  const parts = [];
+  const place = (ring, height) => {
+    try {
+      parts.push(extrudeRing(ring, height));
+    } catch (error) {
+      console.warn(error);
+    }
+  };
+  for (let iz = 0; iz < ROAD_ZS.length - 1; iz += 1) {
+    for (let ix = 0; ix < ROAD_XS.length - 1; ix += 1) {
+      if ((ix + iz) % 3 === 0) continue;
+      const template = FOOTPRINTS[(ix * 5 + iz * 3) % Math.max(1, FOOTPRINTS.length)];
+      if (!template) continue;
+      const bounds = cellBounds(ix, iz);
+      const w = 6 + rand() * 5;
+      const d = 6 + rand() * 4;
+      const height = iz === 0 ? 4 + rand() * 3 : 5 + rand() * (iz > 2 ? 14 : 7);
+      const x = (bounds.x0 + bounds.x1) / 2;
+      const z = (bounds.z0 + bounds.z1) / 2;
+      if (overlaps(collision, x, z, w, d, 0.4)) continue;
+      const rot = rand() * Math.PI;
+      place(stampRing(template, x, z, w, d, rot), height);
+      addBox(collision, x, z, w * 0.8, d * 0.8);
+      geoms.push(coloredBox(w * 0.92, 0.22, d * 0.92, x, height + 0.1, z, ROOFS[(ix + iz) % ROOFS.length]));
+    }
+  }
+  const cluster = buildingsUrl.buildings || [];
+  for (const item of cluster) {
+    if (!item.ring || item.ring.length < 4) continue;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (const [x, z] of item.ring) {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+    }
+    if (maxX - minX > 70 || maxZ - minZ > 70) continue;
+    const cx = (minX + maxX) / 2;
+    const cz = (minZ + maxZ) / 2;
+    const ox = -200 + (cx - 40) * 0.22;
+    const oz = 150 + (cz + 80) * 0.22;
+    const ring = item.ring.map(([x, z]) => [ox + (x - cx) * 0.22, oz + (z - cz) * 0.22]);
+    const height = item.kind === 'hangar' ? 6 : 3.2 + (item.levels || 1) * 2.4;
+    if (overlaps(collision, ox, oz, (maxX - minX) * 0.22, (maxZ - minZ) * 0.22, 0.2)) continue;
+    place(ring, height);
+    addBox(collision, ox, oz, Math.max(2, (maxX - minX) * 0.2), Math.max(2, (maxZ - minZ) * 0.2));
+  }
+  if (!parts.length) return;
+  const merged = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  if (!merged) return;
+  const mesh = new Mesh(merged, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
 }
 
 function placeBuilding(buckets, geoms, collision, ix, iz, rand) {

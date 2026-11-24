@@ -5,8 +5,7 @@ import {
   Group,
   Mesh,
   MeshLambertMaterial,
-  MeshPhongMaterial,
-  MeshStandardMaterial,
+  MeshPhysicalMaterial,
   SRGBColorSpace,
 } from 'three';
 import { cameraPlanarBasis } from './camera-basis.js';
@@ -15,12 +14,15 @@ import { createHuman, poseHuman } from './people.js';
 import { clamp, clampWorld, damp, resolveCircle } from './utils.js';
 
 const CAR_COLORS = [0xf4f4f4, 0xc5ccd6, 0xc0392b, 0x1f4e89, 0x1e7a46, 0x2c2c2c, 0xd4782a, 0xf2c14e];
-const glassMat = new MeshPhongMaterial({
-  color: 0x9ec9e0,
+const glassMat = new MeshPhysicalMaterial({
+  color: 0xb7d7ea,
+  metalness: 0,
+  roughness: 0.06,
+  clearcoat: 1,
+  clearcoatRoughness: 0.08,
   transparent: true,
   opacity: 0.45,
-  shininess: 80,
-  specular: 0xffffff,
+  envMapIntensity: 1.4,
   depthWrite: false,
 });
 const rubber = new MeshLambertMaterial({ color: 0x1a1a1a });
@@ -76,11 +78,13 @@ function addWheel(parent, x, y, z, radius, width, front) {
 
 function buildMesh(type, color) {
   const group = new Group();
-  const paint = new MeshStandardMaterial({
+  const paint = new MeshPhysicalMaterial({
     color,
-    metalness: type === 'zem' ? 0.28 : 0.74,
-    roughness: type === 'zem' ? 0.42 : 0.2,
-    envMapIntensity: type === 'zem' ? 0.7 : 1.15,
+    metalness: type === 'zem' ? 0.22 : 0.58,
+    roughness: type === 'zem' ? 0.36 : 0.16,
+    clearcoat: type === 'zem' ? 0.3 : 0.9,
+    clearcoatRoughness: type === 'zem' ? 0.35 : 0.12,
+    envMapIntensity: type === 'zem' ? 0.85 : 1.35,
   });
   const wheels = [];
   const headMat = new MeshLambertMaterial({ color: 0xfff6d8, emissive: 0xfff1c4, emissiveIntensity: 0 });
