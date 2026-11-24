@@ -74,7 +74,7 @@ export function createUi() {
           const label = game.nearVehicle.type === 'zem' ? 'le zemidjan' : game.nearVehicle.type === 'suv' ? 'le SUV' : 'la voiture';
           setText('prompt', `E  —  Monter dans ${label}`);
         } else {
-          setText('prompt', game.hint || '');
+          setText('prompt', game.zoneHint || game.hint || '');
         }
       }
       setText('toast', game.toast && performance.now() < game.toastUntil ? game.toast : '');

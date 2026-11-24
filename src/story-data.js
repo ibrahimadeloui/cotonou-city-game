@@ -42,9 +42,10 @@ export const STORY = [
   },
   {
     id: 'course',
-    title: 'Course des Pêches',
-    brief: 'Un zem te défie sur la Route des Pêches. Rejoins la plage de Fidjrossè avant la fin du temps.',
-    body: 'Rejoins Fidjrossè avant le chrono.',
+    title: 'Le repas de la plage',
+    brief: 'Maman a préparé le repas. Porte-le de la Route des Pêches jusqu\'à Fidjrossè avant qu\'il refroidisse.',
+    body: 'Livre le repas à Fidjrossè.',
+    objective: 'Livre le repas à Fidjrossè',
     place: 'fidjrosse',
     steps: ['peches', 'fidjrosse'],
     pay: 4500,
@@ -54,9 +55,9 @@ export const STORY = [
   },
   {
     id: 'vendeur',
-    title: 'L\'étal de Fidjrossè',
-    brief: 'Un vendeur de la plage est inquiet. Reste près de lui le temps que ça se calme. S\'il le faut, repousse celui qui s\'approche.',
-    body: 'Reste à Fidjrossè le temps indiqué.',
+    title: 'Pour l\'aîné',
+    brief: 'L\'aîné de Fidjrossè veut du riz du marché. Achète-le, puis reste près de lui le temps qu\'il goûte.',
+    body: 'Apporte le riz et reste près de l\'aîné.',
     place: 'fidjrosse',
     pay: 4000,
     hold: 18,
@@ -97,3 +98,71 @@ export const STORY = [
     voice: 'finale',
   },
 ];
+
+/** Scènes jouées à l'arrivée. Chaque réplique a un nom, le français, parfois le fon. */
+export const SCENES = {
+  zem: {
+    introAt: 'zone',
+    objective: 'Objectif : conduis le client jusqu\'à Dantokpa',
+    intro: [
+      { speaker: 'Koffi', text: 'Ibrahim, le client est là. Prends le zem jaune.', fon: 'Wa yi zem.', dur: 2.6, cam: { dx: 3.2, dy: 1.7, dz: 1.4 } },
+      { speaker: 'Client', text: 'Dantokpa, s\'il te plaît. Je paie à l\'arrivée.', dur: 2.6, cam: { dx: -2.4, dy: 1.5, dz: 2.6 } },
+    ],
+    mid: { speaker: 'Client', text: 'On y est presque. Reste sur la grande route.' },
+    outro: [
+      { speaker: 'Client', text: 'Merci. Voici tes francs.', dur: 2.4, cam: { dx: 2.2, dy: 1.6, dz: -2.4 } },
+    ],
+  },
+  pagne: {
+    introAt: 'zone',
+    objective: 'Objectif : mets le voleur à terre, sans le blesser',
+    intro: [
+      { speaker: 'Vendeuse', text: 'Il a pris le pagne. Rattrape-le.', fon: 'E huzu.', dur: 2.4, cam: { dx: 2.8, dy: 1.6, dz: 2 } },
+      { speaker: 'Ibrahim', text: 'Je le fais tomber. Il se relèvera.', dur: 2.3, cam: { dx: -1.8, dy: 1.45, dz: 2.2 } },
+    ],
+    mid: { speaker: 'Vendeuse', text: 'Doucement. On ne le blesse pas.' },
+    outro: [
+      { speaker: 'Vendeuse', text: 'Le pagne est revenu. Tiens, pour ta peine.', dur: 2.4 },
+    ],
+  },
+  course: {
+    introAt: 'zone',
+    objective: 'Objectif : livre le repas à Fidjrossè',
+    intro: [
+      { speaker: 'Maman', text: 'Le repas est chaud. Porte-le à la plage.', dur: 2.5, cam: { dx: 2.6, dy: 1.6, dz: 1.8 } },
+      { speaker: 'Ibrahim', text: 'J\'y vais avant qu\'il refroidisse.', dur: 2.2, cam: { dx: -2, dy: 1.5, dz: 2.4 } },
+    ],
+    mid: { speaker: 'Maman', text: 'Tu approches. Ne traîne pas.' },
+    outro: [
+      { speaker: 'Tante', text: 'Le repas est encore chaud. Merci, mon fils.', fon: 'Akpe.', dur: 2.5 },
+    ],
+  },
+  fuite: {
+    introAt: 'start',
+    objective: 'Objectif : échappe à la police et atteins Ganhi',
+    intro: [
+      { speaker: 'Policier', text: 'On te voit. Rends-toi.', dur: 2.2, cam: { dx: 4, dy: 2.2, dz: -1 } },
+      { speaker: 'Koffi', text: 'File vers Ganhi. Ne te fais pas coincer.', fon: 'Si gan.', dur: 2.5, cam: { dx: -2.2, dy: 1.6, dz: 2 } },
+    ],
+    mid: { speaker: 'Koffi', text: 'Encore un peu. Ganhi est devant.' },
+    outro: [
+      { speaker: 'Koffi', text: 'Ils t\'ont perdu. Respire. Voici de quoi tenir.', dur: 2.6 },
+    ],
+  },
+  vendeur: {
+    introAt: 'zone',
+    objective: 'Objectif : reste près de l\'aîné le temps qu\'il goûte',
+    intro: [
+      { speaker: 'L\'aîné', text: 'Tu as le riz ? Reste là, je goûte.', fon: 'Mo du riz.', dur: 2.6, cam: { dx: 2.4, dy: 1.55, dz: 2 } },
+      { speaker: 'Ibrahim', text: 'Je reste. Personne ne te dérange.', dur: 2.2, cam: { dx: -1.6, dy: 1.4, dz: 2.2 } },
+    ],
+    mid: { speaker: 'L\'aîné', text: 'C\'est bon. Encore un instant.' },
+    outro: [
+      { speaker: 'L\'aîné', text: 'C\'était bien. Prends ces francs.', dur: 2.4 },
+    ],
+  },
+};
+
+export function sceneFor(id) {
+  return SCENES[id] || null;
+}

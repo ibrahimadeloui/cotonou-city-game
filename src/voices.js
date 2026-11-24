@@ -1,18 +1,18 @@
 const LINES = {
-  cava: 'Ça va ?',
-  doucement: 'Doucement !',
-  yovo: 'Yovo !',
-  ahnon: 'Ah non !',
-  mikudo: 'Mi kudo.',
-  zem: 'Monte, on file à Dantokpa.',
-  port: 'Le port nous attend.',
-  marche: 'Dantokpa, attention aux étals.',
-  police: 'La police ! File !',
-  patron: 'Tu cherches le patron ?',
-  vendeur: 'Protège l\'étal, hein.',
-  course: 'La Route des Pêches, vite !',
-  hopital: 'L\'hôpital te relève. Doucement.',
-  finale: 'Bienvenue à la Marina.',
+  cava: { speaker: 'Passant', text: 'Ça va ?' },
+  doucement: { speaker: 'Passant', text: 'Doucement !' },
+  yovo: { speaker: 'Passant', text: 'Yovo !', fon: 'Yovo.' },
+  ahnon: { speaker: 'Passant', text: 'Ah non !' },
+  mikudo: { speaker: 'Passant', text: 'Mi kudo.', fon: 'Mi kudo. — Je te salue.' },
+  zem: { speaker: 'Koffi', text: 'Monte, on file à Dantokpa.' },
+  port: { speaker: 'Client', text: 'Le port nous attend.' },
+  marche: { speaker: 'Vendeuse', text: 'Dantokpa, attention aux étals.' },
+  police: { speaker: 'Policier', text: 'La police ! File !' },
+  patron: { speaker: 'Le patron', text: 'Tu cherches le patron ?' },
+  vendeur: { speaker: 'L\'aîné', text: 'Protège l\'étal, hein.' },
+  course: { speaker: 'Maman', text: 'La Route des Pêches, vite !' },
+  hopital: { speaker: 'Infirmier', text: 'L\'hôpital te relève. Doucement.' },
+  finale: { speaker: 'Koffi', text: 'Bienvenue à la Marina.' },
 };
 
 const IDLE = ['cava', 'yovo', 'mikudo', 'doucement'];
@@ -23,67 +23,141 @@ function clipUrl(id) {
   return clips[`./assets/voices/${id}.wav`];
 }
 
-export function createVoices() {
-  const bubble = document.getElementById('speech');
-  let hideAt = 0;
-  let cool = 2.5;
-  const players = new Map();
+export function createVoices(audio) {
+  const box = document.getElementById('subtitle');
+  const nameEl = document.getElementById('sub-name');
+  const textEl = document.getElementById('sub-text');
+  const fonEl = document.getElementById('sub-fon');
+  const queue = [];
+  let current = null;
+  let held = false;
+  let cool = 4;
+  let frenchVoice = null;
 
-  function show(id) {
-    const text = LINES[id];
-    if (!text || !bubble) return;
-    bubble.textContent = text;
-    bubble.classList.add('on');
-    hideAt = performance.now() + 2600;
+  function pickVoice() {
+    const synth = window.speechSynthesis;
+    if (!synth) return null;
+    const list = synth.getVoices?.() || [];
+    frenchVoice = list.find((voice) => /fr[-_]FR/i.test(voice.lang) && /google|thomas|audrey|am[ée]lie|denise/i.test(voice.name))
+      || list.find((voice) => /^fr/i.test(voice.lang))
+      || null;
+    return frenchVoice;
+  }
+  window.speechSynthesis?.addEventListener?.('voiceschanged', pickVoice);
+  pickVoice();
+
+  function show(line) {
+    if (!box) return;
+    if (nameEl) nameEl.textContent = line.speaker || 'Quelqu\'un';
+    if (textEl) textEl.textContent = line.text || '';
+    if (fonEl) {
+      fonEl.textContent = line.fon || '';
+      fonEl.hidden = !line.fon;
+    }
+    box.classList.remove('hidden');
+    box.classList.add('on');
   }
 
-  function say(id) {
-    if (!LINES[id]) return;
-    show(id);
-    const url = clipUrl(id);
-    if (url) {
-      let audio = players.get(id);
-      if (!audio) {
-        audio = new Audio(url);
-        audio.preload = 'auto';
-        players.set(id, audio);
-      }
-      audio.currentTime = 0;
-      audio.play().catch(() => speak(LINES[id]));
+  function hide() {
+    box?.classList.remove('on');
+    box?.classList.add('hidden');
+    audio?.setTalking(false);
+  }
+
+  function finish() {
+    current = null;
+    if (queue.length) {
+      play(queue.shift());
       return;
     }
-    speak(LINES[id]);
+    if (!held) hide();
   }
 
-  function speak(text) {
+  function speak(line, done) {
     const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!synth || !line.text) return false;
     try {
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'fr-FR';
-      utter.rate = 1.05;
       synth.cancel();
+      const utter = new SpeechSynthesisUtterance(line.text);
+      utter.lang = 'fr-FR';
+      utter.rate = 0.96;
+      utter.pitch = 1;
+      utter.volume = 1;
+      if (!frenchVoice) pickVoice();
+      if (frenchVoice) utter.voice = frenchVoice;
+      utter.onend = done;
+      utter.onerror = done;
       synth.speak(utter);
+      return true;
     } catch {
-      /* le sous-titre reste affiché */
+      return false;
     }
+  }
+
+  function play(line) {
+    current = line;
+    if (line.hold) held = true;
+    show(line);
+    audio?.setTalking(true);
+    const spoken = speak(line, finish);
+    if (spoken) return;
+    const url = line.id ? clipUrl(line.id) : '';
+    if (url && audio?.playClip) {
+      audio.playClip(url, { pan: line.pan || 0, onend: finish });
+      return;
+    }
+    window.setTimeout(finish, 2200);
+  }
+
+  function enqueue(line) {
+    if (!line?.text) return;
+    if (current) queue.push(line);
+    else play(line);
+  }
+
+  function say(id, pan = 0) {
+    const line = LINES[id];
+    if (!line) return;
+    enqueue({ ...line, id, pan });
+  }
+
+  function sayLine(line) {
+    if (!line?.text) return;
+    enqueue(line);
+  }
+
+  function skip() {
+    held = false;
+    queue.length = 0;
+    try { window.speechSynthesis?.cancel(); } catch { /* rien */ }
+    audio?.stopClip?.();
+    current = null;
+    hide();
   }
 
   return {
     say,
+    sayLine,
+    skip,
+    talking() { return Boolean(current) || queue.length > 0; },
     tick(dt, player, peds) {
-      if (bubble && performance.now() > hideAt) bubble.classList.remove('on');
       cool -= dt;
-      if (cool > 0 || player.vehicle) return;
+      if (cool > 0 || player.vehicle || current) return;
       let nearest = Infinity;
+      let pan = 0;
       for (const ped of peds) {
-        if (ped.down || !ped.mesh.visible) continue;
-        const dist = Math.hypot(ped.pos.x - player.pos.x, ped.pos.z - player.pos.z);
-        if (dist < nearest) nearest = dist;
+        if (ped.down || !ped.mesh?.visible) continue;
+        const dx = ped.pos.x - player.pos.x;
+        const dz = ped.pos.z - player.pos.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < nearest) {
+          nearest = dist;
+          pan = Math.max(-0.45, Math.min(0.45, dx / 14));
+        }
       }
-      if (nearest < 3.4) {
-        say(IDLE[Math.floor(Math.random() * IDLE.length)]);
-        cool = 9;
+      if (nearest < 3.2) {
+        say(IDLE[Math.floor(Math.random() * IDLE.length)], pan);
+        cool = 11;
       }
     },
   };

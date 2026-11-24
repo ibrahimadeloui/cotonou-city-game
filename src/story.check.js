@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { STORY } from './story-data.js';
+import { sceneFor, STORY } from './story-data.js';
 import fs from 'node:fs';
 
 assert.ok(STORY.length >= 8, 'au moins 8 missions');
@@ -11,6 +11,15 @@ for (const mission of STORY) {
   assert.ok(['reach', 'fight', 'convoy', 'protect', 'escape'].includes(mission.kind));
 }
 assert.ok(ids.has('zem') && ids.has('port') && ids.has('patron') && ids.has('fuite'));
+for (const id of ['zem', 'pagne', 'course', 'fuite', 'vendeur']) {
+  const scene = sceneFor(id);
+  assert.ok(scene?.intro?.length >= 2, `${id} scène d'intro`);
+  assert.ok(scene.outro?.length >= 1, `${id} scène de fin`);
+  assert.ok(/Objectif/.test(scene.objective), `${id} objectif`);
+  for (const line of [...scene.intro, ...scene.outro]) {
+    assert.ok(line.speaker && line.text, `${id} réplique`);
+  }
+}
 
 const voices = ['cava', 'doucement', 'yovo', 'ahnon', 'mikudo', 'zem', 'port', 'police', 'patron', 'hopital'];
 for (const id of voices) {

@@ -270,7 +270,6 @@ const missions = createMissions(scene);
 const story = createStory(missions);
 const gps = createGps(scene);
 const policeForce = createPolice(scene);
-const voices = createVoices();
 const input = createInput();
 input.setActions({
   play() {
@@ -321,6 +320,7 @@ input.setActions({
   },
 });
 const audio = createAudio();
+const voices = createVoices(audio);
 const ui = createUi();
 const rig = createCameraRig(camera);
 rig.state.yaw = SPAWN.yaw;
@@ -470,9 +470,20 @@ function toast(text) {
   game.toastUntil = performance.now() + 3400;
 }
 
+{
+  const skipLine = (event) => {
+    event?.stopPropagation?.();
+    voices.skip();
+    story.skipScene();
+  };
+  const subtitle = document.getElementById('subtitle');
+  subtitle?.addEventListener('pointerdown', skipLine);
+  subtitle?.addEventListener('click', skipLine);
+}
 story.setHooks({
   toast,
   say(id) { voices.say(id); },
+  sayLine(line) { voices.sayLine(line); },
   reward(pay) {
     game.money += pay;
     missions.state.jobs += 1;
@@ -796,6 +807,19 @@ function frame(now) {
     document.getElementById('pause').classList.toggle('hidden', !paused);
     note('pause');
   }
+  if (story.sceneOn()) {
+    const shot = story.tickScene(dt, player, peds);
+    if (shot) {
+      const blend = 1 - Math.exp(-3.2 * dt);
+      camera.position.lerp(focus.set(shot.x, shot.y, shot.z), blend);
+      camera.lookAt(shot.lx, shot.ly, shot.lz);
+    }
+    lighting.update(dt, game.hour, player.pos.x ? focus.set(player.pos.x, 0, player.pos.z) : focus, camera);
+    ui.update(game, camera);
+    present();
+    requestAnimationFrame(frame);
+    return;
+  }
   if (paused || story.holding()) {
     present();
     requestAnimationFrame(frame);
@@ -857,6 +881,9 @@ function frame(now) {
     note('horn');
   }
   if (edges.use && !player.vehicle) {
+    if (story.tryTalk(player)) {
+      note('talk');
+    } else {
     const stall = nearestStall(player.pos);
     const ped = nearestTalk(player.pos, peds);
     if (stall) {
@@ -877,6 +904,7 @@ function frame(now) {
       voices.say(Math.random() < 0.5 ? 'cava' : 'yovo');
       ped.yaw = Math.atan2(player.pos.x - ped.pos.x, player.pos.z - ped.pos.z);
       note('talk');
+    }
     }
   }
 
@@ -955,6 +983,7 @@ function frame(now) {
   if (!story.done()) story.update(dt, player, peds);
   gps.update(player, missions.target(), time);
   game.hint = story.hint();
+  game.zoneHint = story.zoneHint();
   game.waypoint = gps.waypoint || null;
   game.route = gps.route;
 
