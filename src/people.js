@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
   TextureLoader,
 } from 'three';
+import { cameraPlanarBasis } from './camera-basis.js';
 import { RUN_SPEED, WALK_SPEED } from './config.js';
 import { clamp, clampWorld, dampAngle, resolveCircle } from './utils.js';
 
@@ -227,12 +228,9 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
     return;
   }
 
-  const faceX = Math.sin(cameraYaw);
-  const faceZ = Math.cos(cameraYaw);
-  const rightX = Math.cos(cameraYaw);
-  const rightZ = -Math.sin(cameraYaw);
-  let mx = faceX * input.forward + rightX * input.right;
-  let mz = faceZ * input.forward + rightZ * input.right;
+  const { forwardX, forwardZ, rightX, rightZ } = cameraPlanarBasis(cameraYaw);
+  let mx = forwardX * input.forward + rightX * input.right;
+  let mz = forwardZ * input.forward + rightZ * input.right;
   const mag = Math.hypot(mx, mz);
   const run = input.run || (input.analog && mag > 0.9);
   if (mag > 0.08) {

@@ -139,8 +139,11 @@ export function createInput() {
   }
 
   function updateJoy(pointer) {
-    // clientY grows downward. Up on the stick must be positive forward,
-    // and forward is the direction the camera looks (away from the camera).
+    // clientX grows to the right, clientY grows downward.
+    // joyX stays positive when the knob moves right — same sign as D /
+    // ArrowRight. joyY is negated so up is positive forward.
+    // Screen-right is cameraPlanarBasis().right = cross(forward, up).
+    // Do not negate joyX as well.
     const dx = pointer.x - pointer.cx;
     const dy = pointer.y - pointer.cy;
     const max = pointer.max || 60;

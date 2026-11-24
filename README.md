@@ -62,7 +62,7 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 
 ### Téléphone
 
-Un joystick s'affiche en bas à gauche, les boutons **Courir / Frein**, **Monter / Sortir**, **Klaxon** et **Pause** en bas à droite. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir.
+Un joystick s'affiche en bas à gauche, les boutons **Courir / Frein**, **Monter / Sortir**, **Klaxon** et **Pause** en bas à droite. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir. Haut éloigne de la caméra, bas s'en rapproche, droite et gauche suivent l'écran (comme D et A). En voiture, droite fait tourner à droite.
 
 ## Comment jouer
 
