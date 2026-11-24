@@ -23,35 +23,80 @@ const dummyScale = new Vector3();
 const dummyMatrix = new Matrix4();
 const upAxis = new Vector3(0, 1, 0);
 
-function nearest(list, value) {
-  let best = list[0];
-  let bestD = Math.abs(value - best);
-  for (let i = 1; i < list.length; i += 1) {
-    const d = Math.abs(value - list[i]);
-    if (d < bestD) {
-      best = list[i];
-      bestD = d;
-    }
-  }
-  return best;
-}
-
 function push(x, z) {
   const last = route[route.length - 1];
   if (last && Math.hypot(last.x - x, last.z - z) < 0.8) return;
   route.push({ x, z });
 }
 
+function nearestIndex(list, value) {
+  let best = 0;
+  let bestD = Math.abs(value - list[0]);
+  for (let i = 1; i < list.length; i += 1) {
+    const d = Math.abs(value - list[i]);
+    if (d < bestD) {
+      best = i;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** Le bout de la flèche est vers -Z du plan. On ajoute π pour qu'il suive le chemin. */
+export function chevronForward(pathYaw) {
+  const meshYaw = pathYaw + Math.PI;
+  return { x: -Math.sin(meshYaw), z: -Math.cos(meshYaw) };
+}
+
+export function pathHeading(ax, az, bx, bz) {
+  return Math.atan2(bx - ax, bz - az);
+}
+
+function astarNodes(ax, az, bx, bz) {
+  const xs = ROAD_XS;
+  const zs = ROAD_ZS;
+  const start = [nearestIndex(xs, ax), nearestIndex(zs, az)];
+  const goal = [nearestIndex(xs, bx), nearestIndex(zs, bz)];
+  const key = (ix, iz) => `${ix},${iz}`;
+  const gScore = new Map([[key(start[0], start[1]), 0]]);
+  const came = new Map();
+  const open = [start];
+  const heuristic = (ix, iz) => Math.abs(xs[ix] - xs[goal[0]]) + Math.abs(zs[iz] - zs[goal[1]]);
+  while (open.length) {
+    open.sort((a, b) => (gScore.get(key(a[0], a[1])) + heuristic(a[0], a[1]))
+      - (gScore.get(key(b[0], b[1])) + heuristic(b[0], b[1])));
+    const [ix, iz] = open.shift();
+    if (ix === goal[0] && iz === goal[1]) break;
+    const next = [];
+    if (ix > 0) next.push([ix - 1, iz]);
+    if (ix < xs.length - 1) next.push([ix + 1, iz]);
+    if (iz > 0) next.push([ix, iz - 1]);
+    if (iz < zs.length - 1) next.push([ix, iz + 1]);
+    for (const node of next) {
+      const step = Math.hypot(xs[node[0]] - xs[ix], zs[node[1]] - zs[iz]);
+      const score = gScore.get(key(ix, iz)) + step;
+      if (score + 0.01 >= (gScore.get(key(node[0], node[1])) ?? Infinity)) continue;
+      gScore.set(key(node[0], node[1]), score);
+      came.set(key(node[0], node[1]), [ix, iz]);
+      if (!open.some((item) => item[0] === node[0] && item[1] === node[1])) open.push(node);
+    }
+  }
+  const path = [];
+  let cursor = goal;
+  const seen = new Set();
+  while (cursor && !seen.has(key(cursor[0], cursor[1]))) {
+    seen.add(key(cursor[0], cursor[1]));
+    path.push({ x: xs[cursor[0]], z: zs[cursor[1]] });
+    cursor = came.get(key(cursor[0], cursor[1]));
+  }
+  path.reverse();
+  return path;
+}
+
 export function gridRoute(ax, az, bx, bz) {
   route.length = 0;
-  const sx = nearest(ROAD_XS, ax);
-  const sz = nearest(ROAD_ZS, az);
-  const ex = nearest(ROAD_XS, bx);
-  const ez = nearest(ROAD_ZS, bz);
   push(ax, az);
-  push(sx, sz);
-  push(ex, sz);
-  push(ex, ez);
+  for (const point of astarNodes(ax, az, bx, bz)) push(point.x, point.z);
   push(bx, bz);
   return route;
 }
@@ -167,7 +212,7 @@ export function createGps(scene) {
         const fromPlayer = Math.hypot(cursor.x - player.pos.x, cursor.z - player.pos.z);
         const fade = fromPlayer < 5 ? 0.001 : Math.min(1, (fromPlayer - 5) / 6);
         dummyPos.set(cursor.x, 0.26, cursor.z);
-        dummyQuat.setFromAxisAngle(upAxis, cursor.yaw);
+        dummyQuat.setFromAxisAngle(upAxis, cursor.yaw + Math.PI);
         dummyScale.set(fade, fade, fade);
         dummyMatrix.compose(dummyPos, dummyQuat, dummyScale);
         chevrons.setMatrixAt(n, dummyMatrix);
@@ -176,6 +221,20 @@ export function createGps(scene) {
       chevrons.count = shown;
       chevrons.instanceMatrix.needsUpdate = true;
       this.count = shown;
+      this.waypoint = shown ? { x: cursor.x, z: cursor.z } : { x: target.x, z: target.z };
+    },
+    chevronDot() {
+      if (route.length < 2) return 1;
+      let worst = 1;
+      for (let i = 1; i < route.length; i += 1) {
+        const a = route[i - 1];
+        const b = route[i];
+        const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+        const yaw = pathHeading(a.x, a.z, b.x, b.z);
+        const fwd = chevronForward(yaw);
+        worst = Math.min(worst, (fwd.x * (b.x - a.x) + fwd.z * (b.z - a.z)) / len);
+      }
+      return worst;
     },
   };
 }

@@ -19,6 +19,7 @@ import {
   Vector2,
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { PARKED, PLACES } from './config.js';
 
@@ -207,13 +208,53 @@ function clipBy(gltf, suffix) {
   return gltf.animations.find((clip) => clip.name.endsWith(suffix));
 }
 
+function loader() {
+  const next = new GLTFLoader();
+  next.setMeshoptDecoder(MeshoptDecoder);
+  return next;
+}
+
 export function loadHumanGltf(url) {
   return new Promise((resolve, reject) => {
-    new GLTFLoader().load(url, (gltf) => {
-      tagRegions(gltf);
-      resolve(gltf);
-    }, undefined, reject);
+    loader().load(url, (gltf) => resolve(gltf), undefined, reject);
   });
+}
+
+const CAST = ['npc_zem', 'npc_vendor', 'npc_police', 'npc_student', 'npc_business', 'npc_elder'];
+
+async function exists(url) {
+  try {
+    const response = await fetch(url);
+    const type = response.headers.get('content-type') || '';
+    return response.ok && !type.includes('text/html');
+  } catch {
+    return false;
+  }
+}
+
+export async function loadCast(quality) {
+  if (MeshoptDecoder.ready) await MeshoptDecoder.ready;
+  const base = './models/characters/';
+  const phone = quality.tier !== 'haute';
+  const dropIn = await exists('./models/ibrahim.glb');
+  const playerUrl = dropIn
+    ? './models/ibrahim.glb'
+    : `${base}${phone ? 'ibrahim_1k.glb' : 'ibrahim.glb'}`;
+  const player = await loadHumanGltf(playerUrl);
+  const playerLod = await loadHumanGltf(`${base}lod/ibrahim_lod.glb`);
+  const types = [];
+  for (const id of CAST) {
+    if (quality.tier === 'basse') {
+      types.push({ id, full: await loadHumanGltf(`${base}lod/${id}_lod.glb`), lod: null });
+    } else {
+      types.push({
+        id,
+        full: await loadHumanGltf(`${base}${id}.glb`),
+        lod: await loadHumanGltf(`${base}lod/${id}_lod.glb`),
+      });
+    }
+  }
+  return { player, playerLod, types };
 }
 
 function bindAnimations(root, model, gltf) {
@@ -271,25 +312,20 @@ function bindAnimations(root, model, gltf) {
   };
 }
 
-export function createRiggedCharacter(gltf, { player = false, faceUrl, shadows = false, colors } = {}) {
+export function createRiggedCharacter(gltf, { shadows = false } = {}) {
   const model = cloneSkinned(gltf.scene);
-  const mesh = model.getObjectByProperty('isSkinnedMesh', true);
-  mesh.frustumCulled = false;
-  mesh.castShadow = shadows;
-  const faceMap = player ? new TextureLoader().load(faceUrl) : null;
-  if (faceMap) {
-    faceMap.colorSpace = SRGBColorSpace;
-    faceMap.anisotropy = 4;
-  }
-  const material = new MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.58,
-    metalness: 0.02,
-    envMapIntensity: 0.45,
+  model.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.frustumCulled = false;
+    obj.castShadow = shadows;
+    obj.receiveShadow = true;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (!material) continue;
+      material.skinning = true;
+      if (material.map) material.map.anisotropy = 4;
+    }
   });
-  const { material: compiled } = applyHumanShader(material, { faceMap, player });
-  if (!player && colors) compiled.userData.colors = colors;
-  mesh.material = compiled;
   const inner = new Group();
   inner.scale.setScalar(SCALE);
   inner.position.y = -FEET;
@@ -297,24 +333,27 @@ export function createRiggedCharacter(gltf, { player = false, faceUrl, shadows =
   const root = new Group();
   root.add(inner);
   bindAnimations(root, model, gltf);
-  root.userData.material = compiled;
-  root.userData.setOutfit = (wax) => {
-    compiled.userData.outfit = wax ? 0 : 1;
-    const shader = compiled.userData.shader;
-    if (shader) shader.uniforms.outfit.value = compiled.userData.outfit;
-    if (root.userData.chain) root.userData.chain.visible = !wax;
+  root.userData.setOutfit = () => {};
+  return root;
+}
+
+export function createActor(full, lod, options = {}) {
+  const near = createRiggedCharacter(full, options);
+  const far = lod ? createRiggedCharacter(lod, { shadows: false }) : null;
+  if (!far) return near;
+  const root = new Group();
+  root.add(near, far);
+  far.visible = false;
+  root.userData.tickAnim = (mode, dt) => {
+    near.userData.tickAnim(mode, dt);
+    far.userData.tickAnim(mode, dt);
   };
-  if (player) {
-    const chain = new Mesh(
-      new TorusGeometry(0.075, 0.008, 6, 14),
-      new MeshLambertMaterial({ color: 0xc5ccd6 }),
-    );
-    chain.position.set(0, 1.42, 0.08);
-    chain.rotation.x = Math.PI / 2;
-    chain.visible = false;
-    root.add(chain);
-    root.userData.chain = chain;
-  }
+  root.userData.setOutfit = (wax) => near.userData.setOutfit?.(wax);
+  root.userData.updateDistance = (dist) => {
+    const useFar = dist > 25;
+    near.visible = !useFar;
+    far.visible = useFar;
+  };
   return root;
 }
 
@@ -322,7 +361,7 @@ function spot(x, z, yaw, behavior) {
   return { x, z, yaw, behavior };
 }
 
-export function createCrowd(scene, paths, quality, rand, gltf) {
+export function createCrowd(scene, paths, quality, rand, cast) {
   const count = quality.crowd;
   const peds = [];
   const anchors = [
@@ -365,7 +404,8 @@ export function createCrowd(scene, paths, quality, rand, gltf) {
       pants: robe ? shirt : PANTS[Math.floor(rand() * PANTS.length)],
       robe,
     };
-    const mesh = createRiggedCharacter(gltf, { shadows: false, colors });
+    const type = cast.types[i % cast.types.length];
+    const mesh = createActor(type.full, type.lod, { shadows: false });
     mesh.scale.setScalar(0.94 + rand() * 0.12);
     mesh.position.set(spec.x, 0, spec.z);
     mesh.rotation.y = spec.yaw;
@@ -426,7 +466,11 @@ export function createCrowd(scene, paths, quality, rand, gltf) {
   return {
     peds,
     updateLod(camera, frame) {
-      const hide = 28;
+      const hide = 70;
+      for (const ped of peds) {
+        const dist = Math.hypot(ped.pos.x - camera.position.x, ped.pos.z - camera.position.z);
+        ped.mesh.userData.updateDistance?.(dist);
+      }
       for (let i = 0; i < spots.length; i += 1) {
         const d = Math.hypot(spots[i].x - camera.position.x, spots[i].z - camera.position.z);
         const show = d > hide && d < (camera.far || 400);

@@ -46,6 +46,7 @@ export function createUi() {
       const mission = game.missions.state.active;
       setText('mission-kicker', missionTitle(mission));
       setText('mission-body', missionBody(mission));
+      setText('mission-steps', (mission?.checklist || []).map((item) => `${item.done ? '✓' : item.current ? '→' : '○'} ${item.label}`).join('\n'));
       setText('mission-pay', mission ? `Gain ${formatFCFA(mission.pay)}` : 'Les clients paient en francs CFA');
       const target = game.missions.target();
       if (target) {
@@ -71,7 +72,7 @@ export function createUi() {
           const label = game.nearVehicle.type === 'zem' ? 'le zemidjan' : game.nearVehicle.type === 'suv' ? 'le SUV' : 'la voiture';
           setText('prompt', `E  —  Monter dans ${label}`);
         } else {
-          setText('prompt', '');
+          setText('prompt', game.hint || '');
         }
       }
       setText('toast', game.toast && performance.now() < game.toastUntil ? game.toast : '');
@@ -86,7 +87,7 @@ export function createUi() {
         document.getElementById('btn-run')?.setAttribute('aria-label', vehicle ? 'Frein' : 'Courir');
       }
       drawMap(ctx, canvas.width, canvas.height, game);
-      drawArrow(arrow, camera, target, mission);
+      drawArrow(arrow, camera, game.waypoint || target, mission);
     },
   };
 }

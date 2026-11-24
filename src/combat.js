@@ -14,6 +14,7 @@ export function beginCombat(player, input, cameraYaw, dt) {
   if (player.dodgeT > 0) player.dodgeT -= dt;
   if (player.attackT > 0) player.attackT -= dt;
   if (input.punch) player.bufferedPunch = true;
+  if (player.bufferedPunch && player.attackT > 0.05) player.attackT = 0.05;
   if (player.vehicle) {
     player.bufferedPunch = false;
     return;
