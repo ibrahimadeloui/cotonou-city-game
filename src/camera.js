@@ -5,7 +5,7 @@ const desired = new Vector3();
 const look = new Vector3();
 
 export function createCameraRig(camera) {
-  const state = { yaw: Math.PI / 2, pitch: 0.42, dist: 8, drag: 0, snap: true };
+  const state = { yaw: Math.PI / 2, pitch: 0.42, dist: 8, drag: 0, snap: true, camExtra: 0 };
   return {
     state,
     addLook(dx, dy) {
@@ -16,6 +16,9 @@ export function createCameraRig(camera) {
     },
     snap() {
       state.snap = true;
+    },
+    cycleCam() {
+      state.camExtra = state.camExtra === 0 ? -2.2 : state.camExtra < 0 ? 3.4 : 0;
     },
     update(dt, target, faceYaw, moving, modeDist, collision, selfie) {
       state.drag -= dt;
@@ -28,7 +31,7 @@ export function createCameraRig(camera) {
       } else if (state.drag <= 0 && moving) {
         state.yaw = faceYaw;
       }
-      state.dist = selfie ? 2.35 : modeDist;
+      state.dist = Math.max(4.2, (selfie ? 2.35 : modeDist) + (state.camExtra || 0));
       const dist = state.dist;
       const cp = Math.cos(state.pitch);
       const lookHeight = selfie ? 1.5 : 1.25;

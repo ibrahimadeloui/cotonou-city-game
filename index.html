@@ -88,6 +88,21 @@
           <small>Échap</small>
         </button>
       </div>
+      <div id="drive-hud">
+        <button type="button" id="btn-steer-left" aria-label="Gauche"><span>Gauche</span><small>A</small></button>
+        <button type="button" id="btn-steer-right" aria-label="Droite"><span>Droite</span><small>D</small></button>
+        <div id="pedals">
+          <button type="button" id="btn-brake" aria-label="Frein"><span>Frein</span><small>S</small></button>
+          <button type="button" id="btn-gas" aria-label="Accélérer"><span>Accélérer</span><small>W</small></button>
+        </div>
+        <div id="drive-side">
+          <button type="button" id="btn-handbrake" aria-label="Frein à main"><span>Main</span><small>Espace</small></button>
+          <button type="button" id="btn-nitro" aria-label="Nitro"><span>Nitro</span><small>Maj</small></button>
+          <button type="button" id="btn-horn-drive" aria-label="Klaxon"><span>Klaxon</span><small>H</small></button>
+          <button type="button" id="btn-cam" aria-label="Caméra"><span>Caméra</span><small>F</small></button>
+          <button type="button" id="btn-exit" aria-label="Sortir"><span>Sortir</span><small>E</small></button>
+        </div>
+      </div>
     </div>
     <div id="start" class="overlay">
       <div class="card panel">
@@ -121,6 +136,7 @@
         </ul>
         <button type="button" id="btn-outfit">Tenue wax</button>
         <button type="button" id="btn-density">Foule moyenne</button>
+        <button type="button" id="btn-steer-mode">Direction : joystick</button>
         <label class="bright" for="brightness">Luminosité
           <input id="brightness" type="range" min="0.65" max="1.8" step="0.05" value="1.25">
         </label>

@@ -209,6 +209,7 @@ html, body {
 
 #prompt { bottom: 36px; font-size: 18px; }
 #speed { bottom: 64px; color: var(--gold); font-variant-numeric: tabular-nums; }
+body[data-drive="1"] #speed { font-size: 28px; font-weight: 800; }
 
 #hint {
   position: absolute;
@@ -448,6 +449,67 @@ html, body {
 }
 
 #buttons button.held small { opacity: 0.85; }
+
+#drive-hud { display: none; }
+#drive-hud button {
+  border-radius: 50%;
+  border: 3px solid rgba(184, 106, 8, 0.85);
+  background: rgba(255, 248, 236, 0.96);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#drive-hud button.held { background: #f0c14a; transform: scale(0.96); }
+#drive-hud button small { font-size: 11px; font-weight: 650; }
+body[data-drive="1"] #drive-hud { display: block; }
+body[data-drive="1"] #btn-punch,
+body[data-drive="1"] #btn-dodge,
+body[data-drive="1"] #btn-run,
+body[data-drive="1"] #btn-horn,
+body[data-drive="1"] #btn-vehicle { display: none; }
+#pedals {
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: auto;
+}
+#btn-gas { width: 112px; height: 112px; background: #b7f0c8; }
+#btn-brake { width: 84px; height: 84px; background: #ffc9c4; }
+#drive-side {
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(230px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+body[data-drive="1"] #buttons {
+  top: calc(78px + env(safe-area-inset-top));
+  bottom: auto;
+}
+#drive-side button { width: 72px; height: 72px; }
+#btn-steer-left, #btn-steer-right {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 86px;
+  height: 86px;
+  pointer-events: auto;
+}
+#btn-steer-left { left: calc(18px + env(safe-area-inset-left)); }
+#btn-steer-right { left: calc(114px + env(safe-area-inset-left)); }
+body[data-steer="stick"] #btn-steer-left,
+body[data-steer="stick"] #btn-steer-right { display: none; }
+body[data-drive="1"][data-steer="buttons"] #joystick,
+body[data-drive="1"][data-steer="buttons"] #joy-pad { display: none; }
 
 label.bright {
   display: flex;

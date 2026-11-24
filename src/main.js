@@ -34,7 +34,7 @@ import humanUrl from './assets/human.glb?url';
 import { createCrowd, createRiggedCharacter, loadHumanGltf } from './humanoid.js';
 import { updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
-import { formatFCFA, resolveCircle } from './utils.js';
+import { damp, formatFCFA, resolveCircle } from './utils.js';
 import { createTraffic, horn, updateVehicles } from './vehicles.js';
 
 const RADIO = [
@@ -161,6 +161,13 @@ input.setActions({
     if (button) button.textContent = DENSITIES[densityIndex].label;
     note('density');
   },
+  steer() {
+    game.steerMode = game.steerMode === 'buttons' ? 'stick' : 'buttons';
+    localStorage.setItem('cotonou-steer', game.steerMode);
+    const button = document.getElementById('btn-steer-mode');
+    if (button) button.textContent = game.steerMode === 'buttons' ? 'Direction : boutons' : 'Direction : joystick';
+    note('steer');
+  },
 });
 const audio = createAudio();
 const ui = createUi();
@@ -182,10 +189,17 @@ const game = {
   search: policeForce.search,
   route: gps.route,
   escaping: false,
+  steerMode: localStorage.getItem('cotonou-steer') === 'buttons' ? 'buttons' : 'stick',
 };
+{
+  const steerButton = document.getElementById('btn-steer-mode');
+  if (steerButton) steerButton.textContent = game.steerMode === 'buttons' ? 'Direction : boutons' : 'Direction : joystick';
+}
 
 let cycle = 0.2;
 const fps = { t: 0, n: 0, level: 1, hide: 140 };
+let driveThrottle = 0;
+let boostTank = 1;
 let started = false;
 let paused = false;
 let busting = false;
@@ -454,6 +468,10 @@ window.__cotonou = {
   missionVehicle() { return story.current()?.vehicle || ''; },
   knockBoss() { return story.knockBoss(); },
   setStars(n) { game.wanted = n; },
+  setSteer(mode) {
+    game.steerMode = mode === 'buttons' ? 'buttons' : 'stick';
+    localStorage.setItem('cotonou-steer', game.steerMode);
+  },
   enterType(type) {
     let best = null;
     let bestD = Infinity;
@@ -471,6 +489,8 @@ window.__cotonou = {
     if (player.vehicle) player.vehicle.speed = 0;
     return Boolean(player.vehicle);
   },
+  chevrons() { return gps.count || 0; },
+  speedKmh() { return player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0; },
   gotoGoal() {
     const goal = missions.target();
     if (!goal) return false;
@@ -562,7 +582,11 @@ function frame(now) {
   rig.addLook(look.x, look.y);
 
   if (edges.jump && !player.vehicle) note('jump');
-  if (edges.punch) note('punch');
+  if (edges.cam || (edges.punch && player.vehicle)) {
+    rig.cycleCam();
+    note('camera');
+  }
+  if (edges.punch && !player.vehicle) note('punch');
   if (edges.dodge) note('dodge');
   if (edges.enter) {
     selfieUntil = 0;
@@ -595,10 +619,28 @@ function frame(now) {
   }, city.collision, rig.state.yaw);
   pushOutOfCars();
 
+  const driving = Boolean(player.vehicle);
+  const gas = sample.gas || sample.keyForward > 0;
+  const brake = sample.brake || sample.keyForward < 0;
+  const aim = gas && !brake ? 1 : brake && !gas ? -1 : 0;
+  driveThrottle = damp(driveThrottle, driving ? aim : 0, aim === 0 ? 6 : 3.4, dt);
+  if (driving && (sample.nitro || sample.run) && boostTank > 0.05 && driveThrottle > 0.15) {
+    boostTank = Math.max(0, boostTank - dt * 0.4);
+  } else {
+    boostTank = Math.min(1, boostTank + dt * 0.16);
+  }
+  let steer = sample.keyRight;
+  if (game.steerMode === 'buttons') {
+    steer += (sample.steerRight ? 1 : 0) - (sample.steerLeft ? 1 : 0);
+  } else {
+    steer += sample.joyX;
+  }
+  steer = Math.max(-1, Math.min(1, steer));
   const driveInput = {
-    forward: sample.forward,
-    right: sample.right,
-    handbrake: Boolean(player.vehicle) && (sample.space || sample.runHeld),
+    forward: driving ? driveThrottle : sample.forward,
+    right: driving ? steer : sample.right,
+    handbrake: driving && (sample.hand || sample.space),
+    nitro: driving && (sample.nitro || sample.run) && boostTank > 0.05 && driveThrottle > 0.15,
     cameraYaw: rig.state.yaw,
   };
   updateVehicles(traffic, dt, driveInput, player, city.collision, refs.nightHead || 0, {
@@ -629,7 +671,7 @@ function frame(now) {
   });
   voices.tick(dt, player, peds);
   if (!story.done()) story.update(dt, player, peds);
-  gps.update(player, missions.target());
+  gps.update(player, missions.target(), time);
   game.route = gps.route;
 
   bumpCool = Math.max(0, bumpCool - dt);
