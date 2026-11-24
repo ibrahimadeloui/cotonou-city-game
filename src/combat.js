@@ -13,7 +13,11 @@ export function beginCombat(player, input, cameraYaw, dt) {
   if (player.invuln > 0) player.invuln -= dt;
   if (player.dodgeT > 0) player.dodgeT -= dt;
   if (player.attackT > 0) player.attackT -= dt;
-  if (player.vehicle) return;
+  if (input.punch) player.bufferedPunch = true;
+  if (player.vehicle) {
+    player.bufferedPunch = false;
+    return;
+  }
   if (input.dodge && player.dodgeT <= 0) {
     player.attackT = 0;
     player.dodgeT = 0.34;
@@ -25,7 +29,8 @@ export function beginCombat(player, input, cameraYaw, dt) {
     player.dodges = (player.dodges || 0) + 1;
     if (navigator.vibrate) navigator.vibrate(10);
   }
-  if (input.punch && player.attackT <= 0 && player.dodgeT <= 0) {
+  if (player.bufferedPunch && player.attackT <= 0 && player.dodgeT <= 0) {
+    player.bufferedPunch = false;
     player.yaw = cameraYaw;
     player.idle = 0;
     player.combo = ((player.combo || 0) + 1) % 2;

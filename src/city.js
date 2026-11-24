@@ -13,6 +13,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  MeshStandardMaterial,
   NearestFilter,
   PlaneGeometry,
   Quaternion,
@@ -44,13 +45,19 @@ const oceanVertex = `
   varying float vZ;
   varying float vDist;
   varying float vWave;
+  varying vec3 vWorld;
+  varying vec3 vNormal;
   void main() {
     vec3 p = position;
+    float wx = cos(p.x * 0.045 + time * 1.2);
+    float wz = sin(p.z * 0.035 + time * 0.8);
     float w = sin(p.x * 0.045 + time * 1.2) * cos(p.z * 0.035 + time * 0.8);
     p.y += w * 0.55;
     vec4 world = modelMatrix * vec4(p, 1.0);
     vec4 viewPos = viewMatrix * world;
     vZ = world.z;
+    vWorld = world.xyz;
+    vNormal = normalize(mat3(modelMatrix) * vec3(-wx * 0.14, 1.0, -wz * 0.12));
     vDist = length(viewPos.xyz);
     vWave = w;
     gl_Position = projectionMatrix * viewPos;
@@ -61,16 +68,26 @@ const oceanFragment = `
   varying float vZ;
   varying float vDist;
   varying float vWave;
+  varying vec3 vWorld;
+  varying vec3 vNormal;
   uniform vec3 deepColor;
   uniform vec3 shoreColor;
   uniform vec3 sunColor;
+  uniform vec3 skyColor;
+  uniform vec3 sunDir;
   uniform vec3 fogColor;
   uniform float fogNear;
   uniform float fogFar;
   void main() {
     float shore = smoothstep(-80.0, 16.0, vZ);
     vec3 col = mix(deepColor, shoreColor, shore);
-    col += sunColor * (0.05 + vWave * 0.04);
+    vec3 n = normalize(vNormal);
+    vec3 viewDir = normalize(cameraPosition - vWorld);
+    float fres = pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), 3.0);
+    col = mix(col, skyColor, 0.16 + fres * 0.62);
+    vec3 halfDir = normalize(viewDir + normalize(sunDir));
+    float spec = pow(max(dot(n, halfDir), 0.0), 96.0);
+    col += sunColor * (0.05 + spec * 0.95 + max(vWave, 0.0) * 0.05);
     float fogFactor = smoothstep(fogNear, fogFar, vDist);
     col = mix(col, fogColor, clamp(fogFactor, 0.0, 1.0));
     gl_FragColor = vec4(col, 1.0);
@@ -88,6 +105,7 @@ export function createCity(scene, refs, quality) {
   const ground = new PlaneGeometry(560, depth);
   ground.rotateX(-Math.PI / 2);
   ground.translate(0, 0, 8 + depth / 2);
+  scaleUv(ground, 560 / 3.2, depth / 3.2);
   geoms.push(paint(ground, 0xe6d3a6));
   geoms.push(coloredBox(560, 0.025, 14, 0, 0.012, 15, 0xd2b48c));
 
@@ -95,8 +113,11 @@ export function createCity(scene, refs, quality) {
   addCrosswalks(geoms);
 
   const { map, emissiveMap } = makeFacadeTextures();
-  refs.windowMat = new MeshLambertMaterial({
+  refs.windowMat = new MeshStandardMaterial({
     map,
+    roughness: 0.72,
+    metalness: 0.04,
+    envMapIntensity: 0.45,
     emissive: new Color('#ffc48a'),
     emissiveMap,
     emissiveIntensity: 0.12,
@@ -158,7 +179,16 @@ export function createCity(scene, refs, quality) {
   const clouds = addClouds(scene, refs, rand);
 
   const cityGeom = mergeColored(geoms);
-  const cityMat = new MeshLambertMaterial({ vertexColors: true, side: DoubleSide });
+  const surface = surfaceMaps();
+  const cityMat = new MeshStandardMaterial({
+    map: surface.albedo,
+    roughnessMap: surface.roughness,
+    vertexColors: true,
+    roughness: 0.9,
+    metalness: 0.03,
+    envMapIntensity: 0.42,
+    side: DoubleSide,
+  });
   const cityMesh = new Mesh(cityGeom, cityMat);
   cityMesh.receiveShadow = quality.shadows;
   cityMesh.castShadow = quality.shadows;
@@ -173,6 +203,8 @@ export function createCity(scene, refs, quality) {
       deepColor: { value: new Color('#0c3a52') },
       shoreColor: { value: new Color('#1f8ea0') },
       sunColor: { value: new Color('#ffb07a') },
+      skyColor: { value: new Color('#ffd0ea') },
+      sunDir: { value: new Vector3(0.2, 0.8, -0.2) },
       fogColor: { value: new Color('#ffb07a') },
       fogNear: { value: 80 },
       fogFar: { value: 340 },
@@ -365,6 +397,47 @@ function placeBuilding(buckets, geoms, collision, ix, iz, rand) {
     }
     return;
   }
+}
+
+function scaleUv(geom, su, sv) {
+  const uv = geom.getAttribute('uv');
+  if (!uv) return;
+  for (let i = 0; i < uv.count; i += 1) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+}
+
+function surfaceMaps() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f3f0ea';
+  ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 1400; i += 1) {
+    const v = 214 + Math.floor(Math.random() * 36);
+    ctx.fillStyle = `rgb(${v},${v - 3},${v - 8})`;
+    ctx.fillRect(Math.random() * 128, Math.random() * 128, 2, 1);
+  }
+  const albedo = new CanvasTexture(canvas);
+  albedo.wrapS = RepeatWrapping;
+  albedo.wrapT = RepeatWrapping;
+  albedo.colorSpace = SRGBColorSpace;
+  albedo.anisotropy = 4;
+
+  const rough = document.createElement('canvas');
+  rough.width = 128;
+  rough.height = 128;
+  const rg = rough.getContext('2d');
+  rg.fillStyle = '#c8c8c8';
+  rg.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 700; i += 1) {
+    const v = 90 + Math.floor(Math.random() * 140);
+    rg.fillStyle = `rgb(${v},${v},${v})`;
+    rg.fillRect(Math.random() * 128, Math.random() * 128, 3, 2);
+  }
+  const roughness = new CanvasTexture(rough);
+  roughness.wrapS = RepeatWrapping;
+  roughness.wrapT = RepeatWrapping;
+  return { albedo, roughness };
 }
 
 function overlaps(collision, x, z, w, d, pad) {

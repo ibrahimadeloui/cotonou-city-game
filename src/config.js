@@ -79,12 +79,13 @@ export function districtAt(x, z) {
   return 'Centre-ville';
 }
 
-/** La journée est longue. La nuit est un court passage, encore lisible. */
+/** Journée claire, puis un long coucher rose et violet. La nuit reste courte. */
 export function hourFromCycle(u) {
   const x = ((u % 1) + 1) % 1;
-  if (x < 0.78) return 7.5 + (x / 0.78) * 10;
-  const v = (x - 0.78) / 0.22;
-  return (17.5 + v * (24 - 17.5 + 7.5)) % 24;
+  if (x < 0.48) return 8 + (x / 0.48) * 8;
+  if (x < 0.8) return 16 + ((x - 0.48) / 0.32) * 3.8;
+  const v = (x - 0.8) / 0.2;
+  return (19.8 + v * (24 - 19.8 + 8)) % 24;
 }
 
 export function detectQuality() {

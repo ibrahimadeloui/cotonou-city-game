@@ -6,6 +6,7 @@ import {
   Mesh,
   MeshLambertMaterial,
   MeshPhongMaterial,
+  MeshStandardMaterial,
   SRGBColorSpace,
 } from 'three';
 import { cameraPlanarBasis } from './camera-basis.js';
@@ -75,7 +76,12 @@ function addWheel(parent, x, y, z, radius, width, front) {
 
 function buildMesh(type, color) {
   const group = new Group();
-  const paint = new MeshPhongMaterial({ color, shininess: type === 'suv' ? 28 : 18, specular: 0x332211 });
+  const paint = new MeshStandardMaterial({
+    color,
+    metalness: type === 'zem' ? 0.28 : 0.74,
+    roughness: type === 'zem' ? 0.42 : 0.2,
+    envMapIntensity: type === 'zem' ? 0.7 : 1.15,
+  });
   const wheels = [];
   const headMat = new MeshLambertMaterial({ color: 0xfff6d8, emissive: 0xfff1c4, emissiveIntensity: 0 });
 

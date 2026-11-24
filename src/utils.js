@@ -65,6 +65,10 @@ export function paint(geom, color) {
 
 export function coloredBox(w, h, d, x, y, z, color, yaw = 0) {
   const g = new BoxGeometry(w, h, d);
+  const uv = g.getAttribute('uv');
+  const su = Math.max(w, d) / 2.4;
+  const sv = Math.max(h, 0.35) / 2.4;
+  for (let i = 0; i < uv.count; i += 1) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
   if (yaw) g.rotateY(yaw);
   g.translate(x, y, z);
   return paint(g, color);

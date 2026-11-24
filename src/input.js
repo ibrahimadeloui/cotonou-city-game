@@ -131,22 +131,12 @@ export function createInput() {
     return false;
   }
 
-  function joystickCenter(clientX, clientY, fromPad) {
-    const size = joystick.offsetWidth || 158;
-    if (fromPad) {
-      const pad = 8;
-      const left = Math.max(pad, Math.min(window.innerWidth - size - pad, clientX - size / 2));
-      const top = Math.max(pad, Math.min(window.innerHeight - size - pad, clientY - size / 2));
-      joystick.style.left = `${left}px`;
-      joystick.style.top = `${top}px`;
-      joystick.style.bottom = 'auto';
-      return { cx: left + size / 2, cy: top + size / 2, max: size * 0.38 };
-    }
+  function joystickCenter() {
     const rect = joystick.getBoundingClientRect();
     return {
       cx: rect.left + rect.width / 2,
       cy: rect.top + rect.height / 2,
-      max: rect.width * 0.38,
+      max: rect.width * 0.42,
     };
   }
 
@@ -164,16 +154,22 @@ export function createInput() {
     const nx = (dx / mag) * (clamped / max);
     const ny = -((dy / mag) * (clamped / max));
     const strength = Math.hypot(nx, ny);
-    if (strength < 0.06) {
+    let targetX = 0;
+    let targetY = 0;
+    if (strength >= 0.08) {
+      const scale = Math.min(1, (strength - 0.08) / 0.92);
+      targetX = (nx / strength) * scale;
+      targetY = (ny / strength) * scale;
+    }
+    joyX += (targetX - joyX) * 0.45;
+    joyY += (targetY - joyY) * 0.45;
+    if (Math.hypot(joyX, joyY) < 0.02) {
       joyX = 0;
       joyY = 0;
-    } else {
-      joyX = nx;
-      joyY = ny;
     }
     analog = true;
     joystick.classList.add('active');
-    stick.style.transform = `translate(${(dx / mag) * clamped}px, ${(dy / mag) * clamped}px)`;
+    stick.style.transform = `translate(${joyX * max}px, ${-joyY * max}px)`;
   }
 
   function syncRun() {
@@ -237,7 +233,7 @@ export function createInput() {
   }
 
   function blocked(target) {
-    return Boolean(target?.closest?.('#start .card, #pause .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
+    return Boolean(target?.closest?.('#start, #pause .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
   }
 
   window.addEventListener('pointerdown', (event) => {
@@ -254,7 +250,7 @@ export function createInput() {
     const button = event.target.closest?.('button') || null;
     if (button) button.classList.add('held');
     const origin = (kind === 'joy' || kind === 'joy-pad')
-      ? joystickCenter(event.clientX, event.clientY, kind === 'joy-pad')
+      ? joystickCenter()
       : null;
     const record = {
       kind: kind === 'joy-pad' ? 'joy' : kind,
@@ -385,6 +381,17 @@ export function createInput() {
     },
     held() {
       return { run: runHeld };
+    },
+    setJoySize(px) {
+      const size = Math.max(80, Math.min(130, Math.round(px)));
+      const knob = Math.round(size * 0.42);
+      joystick.style.width = `${size}px`;
+      joystick.style.height = `${size}px`;
+      stick.style.width = `${knob}px`;
+      stick.style.height = `${knob}px`;
+      stick.style.marginLeft = `${-knob / 2}px`;
+      stick.style.marginTop = `${-knob / 2}px`;
+      localStorage.setItem('cotonou-joy', String(size));
     },
   };
 }

@@ -2,7 +2,7 @@
 
 Jeu de ville ouverte dans le navigateur, au bord de l'Atlantique à Cotonou. Tu incarnes **Ibrahim** : à pied dans les rues, au volant du SUV noir, ou sur un zemidjan jaune. Les courses de taxi et les livraisons se paient en francs CFA.
 
-Le rendu est en 3D vue troisième personne (Three.js). La ville est générée dans le code : boulevard de la Marina, Route des Pêches, marché Dantokpa, Grande Mosquée, stade, port, plage de Fidjrossè, palmiers, trafic et passants. La lumière suit un cycle jour / nuit qui s'attarde sur l'heure dorée.
+Le rendu est en 3D vue troisième personne (Three.js). La ville est générée dans le code : boulevard de la Marina, Route des Pêches, marché Dantokpa, Grande Mosquée, stade, port, plage de Fidjrossè, palmiers, trafic et passants. La journée commence claire. Le coucher de soleil rose et violet dure plus longtemps, et la pause peut le forcer avec **Lumière : coucher de soleil**.
 
 Ibrahim et les passants utilisent le modèle **Quaternius — Animated Human** (CC0). Le visage d'Ibrahim est sa photo, projetée sur la tête. Les passants proches sont animés (marche, discussion, vendeurs) ; au loin, des silhouettes instanciées prennent le relais. Le menu pause propose **Foule dense**, **Foule moyenne** et **Foule légère** pour les téléphones.
 
@@ -48,7 +48,7 @@ Après un premier chargement, le jeu se met en cache (service worker) : JavaScri
 
 Huit missions enchaînées (zem chronométré, pagne volé à Dantokpa, convoi du SUV vers le port, course de la Route des Pêches, protection d'un étal à Fidjrossè, fuite devant la police, patron du marché, retour à la Marina). Une flèche jaune flotte devant Ibrahim, la mini-carte trace la route, et un faisceau marque l'objectif. Réussite ou échec s'affichent, avec réessai. La progression et l'argent restent dans le `localStorage`. La police poursuit selon les étoiles : on s'échappe en quittant le cercle de recherche, dans une ruelle ou en changeant de voiture. Se faire prendre mène au commissariat. **F** ou **Frapper** enchaîne poing et coup de pied, **R** esquive. Les répliques sont des fichiers audio, avec sous-titres.
 
-Les personnages restent le modèle **Quaternius** (CC0), léger pour un téléphone. Ce n'est pas un rendu façon grand jeu cinématographique : pas de visages uniques filmés, pas de ville photogrammétrée. La lumière reste simple pour que Safari iPhone et Chrome Android tiennent le rythme.
+Les personnages restent le modèle **Quaternius** (CC0), un seul corps partagé, avec la photo d'Ibrahim sur le visage. La peau et les vêtements réagissent à la lumière (rugosité), les voitures ont une peinture qui reflète l'environnement, l'eau renvoie le ciel, et les routes portent un grain. La pause propose **Haute**, **Moyenne** et **Basse** : la haute ajoute ombres douces et un léger flou lumineux. Ce n'est pas un film de jeu AAA. Il n'y a pas de scans de rues, pas de visages filmés un par un, pas d'occlusion ambiante. Le téléphone doit rester fluide, donc les textures viennent du code, pas de fichiers de plusieurs mégaoctets.
 
 ## Contrôles
 
@@ -74,7 +74,7 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 
 ### Téléphone
 
-Un joystick s'affiche en bas à gauche, les boutons **Frapper**, **Esquive**, **Courir**, **Monter**, **Klaxon** et **Pause** en bas à droite. En voiture ou en zemidjan, ils laissent place aux pédales **Accélérer** et **Frein**, au frein à main, à la nitro, au klaxon et à **Sortir**. La pause choisit la direction au joystick ou avec deux boutons. Des chevrons jaunes défilent sur la route vers l'objectif. Ils marchent en même temps que le joystick. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir. Un appui sur Courir fait aussi sauter. Haut éloigne de la caméra, bas s'en rapproche, droite et gauche suivent l'écran (comme D et A). En voiture, droite fait tourner à droite. La pause a un curseur **Luminosité**, gardé sur l'appareil.
+Un joystick s'affiche en bas à gauche, les boutons **Frapper**, **Esquive**, **Courir**, **Monter**, **Klaxon** et **Pause** en bas à droite. En voiture ou en zemidjan, ils laissent place aux pédales **Accélérer** et **Frein**, au frein à main, à la nitro, au klaxon et à **Sortir**. La pause choisit la direction au joystick ou avec deux boutons. Des chevrons jaunes défilent sur la route vers l'objectif. Ils marchent en même temps que le joystick. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir. Un appui sur Courir fait aussi sauter. Haut éloigne de la caméra, bas s'en rapproche, droite et gauche suivent l'écran (comme D et A). En voiture, droite fait tourner à droite. La pause a un curseur **Luminosité**, la **Taille du joystick** (plus petit et stable sous le doigt), le choix **Jour** ou **Coucher de soleil**, et la qualité **Haute / Moyenne / Basse**. Ces choix restent sur l'appareil.
 
 ## Comment jouer
 
