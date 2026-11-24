@@ -1,9 +1,12 @@
 import {
+  CanvasTexture,
   CylinderGeometry,
   DoubleSide,
   Group,
   Mesh,
   MeshBasicMaterial,
+  Sprite,
+  SpriteMaterial,
   MeshLambertMaterial,
   OctahedronGeometry,
   RingGeometry,
@@ -28,15 +31,28 @@ export function createMissions(scene) {
     depthWrite: false,
     side: DoubleSide,
   });
-  const diamond = new Mesh(new OctahedronGeometry(0.55), diamondMat);
-  diamond.position.y = 18.2;
-  const beam = new Mesh(new CylinderGeometry(0.28, 1.15, 18, 8, 1, true), beamMat);
-  beam.position.y = 9;
+  const diamond = new Mesh(new OctahedronGeometry(0.7), diamondMat);
+  diamond.position.y = 22;
+  const beam = new Mesh(new CylinderGeometry(0.35, 1.4, 22, 10, 1, true), beamMat);
+  beam.position.y = 11;
+  const iconCanvas = document.createElement('canvas');
+  iconCanvas.width = 128;
+  iconCanvas.height = 64;
+  const iconCtx = iconCanvas.getContext('2d');
+  iconCtx.fillStyle = '#1b140c';
+  iconCtx.fillRect(0, 8, 128, 48);
+  iconCtx.fillStyle = '#ffe14a';
+  iconCtx.font = 'bold 28px sans-serif';
+  iconCtx.textAlign = 'center';
+  iconCtx.fillText('BUT', 64, 42);
+  const icon = new Sprite(new SpriteMaterial({ map: new CanvasTexture(iconCanvas), transparent: true, depthWrite: false }));
+  icon.position.y = 24;
+  icon.scale.set(3.2, 1.6, 1);
   const ring = new Mesh(new RingGeometry(0.75, 1.05, 20), ringMat);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.12;
   const group = new Group();
-  group.add(diamond, beam, ring);
+  group.add(diamond, beam, ring, icon);
   group.visible = false;
   scene.add(group);
 
@@ -80,7 +96,8 @@ export function createMissions(scene) {
         const point = mission.a;
         group.visible = true;
         group.position.set(point.x, 0, point.z);
-        diamond.position.y = 17.6 + Math.sin(performance.now() / 280) * 0.45;
+        diamond.position.y = 21.4 + Math.sin(performance.now() / 280) * 0.55;
+        icon.position.y = diamond.position.y + 2.2;
         diamond.rotation.y += dt * 1.4;
         return;
       }
@@ -95,7 +112,8 @@ export function createMissions(scene) {
       }
       const point = mission.phase === 'pickup' ? mission.a : mission.b;
       group.position.set(point.x, 0, point.z);
-      diamond.position.y = 17.6 + Math.sin(performance.now() / 280) * 0.45;
+      diamond.position.y = 21.4 + Math.sin(performance.now() / 280) * 0.55;
+      icon.position.y = diamond.position.y + 2.2;
       diamond.rotation.y += dt * 1.4;
       const color = mission.phase === 'pickup' ? 0xffd45a : 0x3dd68c;
       diamondMat.color.setHex(color);

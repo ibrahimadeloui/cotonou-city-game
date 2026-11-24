@@ -180,6 +180,7 @@ export function createCity(scene, refs, quality) {
   const boats = addBoats(scene, rand);
   const flags = addFlags(scene);
   addSigns(scene);
+  addStreetDressing(scene);
   addBillboards(scene);
   const clouds = addClouds(scene, refs, rand);
 
@@ -619,20 +620,29 @@ function facadeGeom(w, h, d) {
 
 function makeFacadeTextures() {
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
+  canvas.width = 128;
+  canvas.height = 128;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, 64, 64);
-  ctx.fillStyle = '#ece7df';
-  ctx.fillRect(0, 0, 64, 4);
-  const windows = [[6, 8], [36, 8], [6, 36], [36, 36]];
+  ctx.fillStyle = '#f4efe4';
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = '#e7d3b0';
+  for (let i = 0; i < 40; i += 1) ctx.fillRect(Math.random() * 128, Math.random() * 128, 8, 2);
+  ctx.fillStyle = '#c4554a';
+  ctx.fillRect(0, 96, 128, 10);
+  ctx.fillStyle = '#1b140c';
+  ctx.fillRect(52, 78, 24, 50);
+  const windows = [[8, 12], [36, 12], [78, 12], [8, 48], [36, 48], [78, 48]];
   for (const [x, y] of windows) {
-    ctx.fillStyle = '#101820';
-    ctx.fillRect(x, y, 20, 22);
+    ctx.fillStyle = '#16324a';
+    ctx.fillRect(x, y, 22, 26);
     ctx.fillStyle = '#d7f3ff';
-    ctx.fillRect(x + 3, y + 3, 5, 7);
+    ctx.fillRect(x + 3, y + 3, 7, 9);
+    ctx.fillStyle = '#8fb8c9';
+    ctx.fillRect(x + 12, y + 14, 6, 8);
   }
+  ctx.fillStyle = '#f0c14a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('MAQUIS', 8, 92);
   const map = new CanvasTexture(canvas);
   map.wrapS = RepeatWrapping;
   map.wrapT = RepeatWrapping;
@@ -1047,4 +1057,43 @@ function addClouds(scene, refs, rand) {
     clouds.push(sprite);
   }
   return clouds;
+}
+
+function signTexture(label, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 256, 96);
+  ctx.fillStyle = '#1b140c';
+  ctx.font = 'bold 42px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, 128, 62);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
+}
+
+function addStreetDressing(scene) {
+  const signs = [
+    ['MAQUIS', '#f0c14a', -20, 78],
+    ['PHARMACIE', '#d7f3ff', 40, 130],
+    ['RIZ', '#e7c07a', 8, 150],
+  ];
+  for (const [label, color, x, z] of signs) {
+    const stall = new Mesh(new BoxGeometry(3.2, 1.1, 2.2), new MeshLambertMaterial({ color: 0x8a5a32 }));
+    stall.position.set(x, 0.55, z);
+    const roof = new Mesh(new BoxGeometry(3.6, 0.12, 2.5), new MeshLambertMaterial({ color: 0xc4554a }));
+    roof.position.set(x, 1.2, z);
+    const board = new Mesh(new PlaneGeometry(2.4, 0.7), new MeshLambertMaterial({ map: signTexture(label, color) }));
+    board.position.set(x, 1.7, z + 1.2);
+    scene.add(stall, roof, board);
+  }
+  const wireMat = new MeshBasicMaterial({ color: 0x222222 });
+  for (let i = 0; i < 5; i += 1) {
+    const wire = new Mesh(new BoxGeometry(48, 0.04, 0.04), wireMat);
+    wire.position.set(-160 + i * 52, 6.4, 62);
+    scene.add(wire);
+  }
 }

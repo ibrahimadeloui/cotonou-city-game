@@ -69,6 +69,11 @@ export function createStory(missions) {
     const steps = stepsOf(current);
     const place = spot(steps[Math.min(step, steps.length - 1)]);
     const holdNeed = (typeof window !== 'undefined' && window.__cotonouFast) ? 0.35 : (current.hold || 0);
+    const checklist = steps.map((id, i) => ({
+      label: spot(id).name,
+      done: i < step,
+      current: i === step,
+    }));
     const stepLabel = `Étape ${Math.min(step, steps.length - 1) + 1}/${steps.length}`;
     let body = `${stepLabel} — ${current.body}`;
     if (current.kind === 'protect') body = `${stepLabel} — reste sur place, ${Math.ceil(Math.max(0, holdNeed - held))} s`;
@@ -85,6 +90,8 @@ export function createStory(missions) {
       pay: current.pay,
       timer,
       dirty: false,
+      checklist,
+      objective: current.objective || current.body,
       ...extra,
     });
   }
@@ -106,7 +113,8 @@ export function createStory(missions) {
     boss = null;
     wantedArmed = false;
     pendingPay = current.pay;
-    showResult('ok', 'Mission réussie', `${current.title}. Tu gagnes ${current.pay.toLocaleString('fr-FR')} FCFA.`);
+    const reputation = 20;
+    showResult('ok', 'Mission réussie', `${current.title}\n${current.objective || current.body}\n+ ${current.pay.toLocaleString('fr-FR')} FCFA\n+ ${reputation} réputation`);
   }
 
   function fail(text) {
@@ -145,6 +153,7 @@ export function createStory(missions) {
       this.begin();
     },
     done() { return index >= STORY.length; },
+    hint() { return this.hintText || ''; },
     setHooks(next) { Object.assign(hooks, next); },
     openBrief,
     begin() {
@@ -205,6 +214,15 @@ export function createStory(missions) {
         return;
       }
       pin({ vehicleOk });
+      if (current.kind === 'fight' && dist < 14 && !player.vehicle) {
+        this.hintText = 'Frappe pour le mettre à terre';
+      } else if (dist < 10 && current.vehicle && !vehicleOk) {
+        this.hintText = current.vehicle === 'zem' ? 'Monte sur le zemidjan' : 'Monte dans le SUV';
+      } else if (dist < 8) {
+        this.hintText = 'Tu es sur l\'objectif';
+      } else {
+        this.hintText = '';
+      }
       if (current.kind === 'reach' || current.kind === 'convoy' || current.kind === 'escape') {
         if (dist < 8 && (speed < 8 || !player.vehicle) && vehicleOk) {
           if (step < steps.length - 1) {

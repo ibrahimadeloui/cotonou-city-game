@@ -40,9 +40,7 @@ import { createPolice } from './police.js';
 import { setupPwa } from './pwa.js';
 import { createStory } from './story.js';
 import { createVoices } from './voices.js';
-import faceUrl from './assets/ibrahim-face.jpg';
-import humanUrl from './assets/human.glb?url';
-import { createCrowd, createRiggedCharacter, loadHumanGltf } from './humanoid.js';
+import { createActor, createCrowd, loadCast } from './humanoid.js';
 import { updatePeds, updatePlayer } from './people.js';
 import { createUi } from './ui.js';
 import { damp, formatFCFA, resolveCircle } from './utils.js';
@@ -225,12 +223,8 @@ async function startGame() {
 // Tant que ces shaders ne sont pas en TSL, le repli WebGL2 reste le rendu actif.
 if (localStorage.getItem('cotonou-webgpu') === '1') await mountWebGPU();
 loadHdri();
-const humanGltf = await loadHumanGltf(humanUrl);
-const ibrahim = createRiggedCharacter(humanGltf, {
-  player: true,
-  faceUrl,
-  shadows: quality.shadows,
-});
+const cast = await loadCast(quality);
+const ibrahim = createActor(cast.player, cast.playerLod, { shadows: quality.shadows });
 scene.add(ibrahim);
 const contact = new Mesh(
   new CircleGeometry(0.7, 18),
@@ -260,7 +254,7 @@ const player = {
 ibrahim.position.set(player.pos.x, 0, player.pos.z);
 ibrahim.rotation.y = player.yaw;
 
-const crowd = createCrowd(scene, city.paths, quality, Math.random, humanGltf);
+const crowd = createCrowd(scene, city.paths, quality, Math.random, cast);
 const peds = crowd.peds;
 const DENSITIES = [
   { value: 1, label: 'Foule dense' },
@@ -707,6 +701,7 @@ window.__cotonou = {
     return Boolean(player.vehicle);
   },
   chevrons() { return gps.count || 0; },
+  chevronDot() { return gps.chevronDot(); },
   speedKmh() { return player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0; },
   gotoGoal() {
     const goal = missions.target();
@@ -879,6 +874,8 @@ function frame(now) {
 
   updatePeds(peds, dt, player, city.paths, () => addWanted('Tu as renversé un piéton.'), camera, quality);
   crowd.updateLod(camera, peds.frame || 0);
+  const camDist = Math.hypot(camera.position.x - player.pos.x, camera.position.z - player.pos.z);
+  ibrahim.userData.updateDistance?.(camDist);
   game.foe = resolveCombat(dt, player, peds, {
     say(id) { voices.say(id); },
     onAttack() { addWanted('Tu as frappé quelqu\'un. La police est prévenue.'); },
@@ -893,6 +890,8 @@ function frame(now) {
   voices.tick(dt, player, peds);
   if (!story.done()) story.update(dt, player, peds);
   gps.update(player, missions.target(), time);
+  game.hint = story.hint();
+  game.waypoint = gps.waypoint || null;
   game.route = gps.route;
 
   bumpCool = Math.max(0, bumpCool - dt);

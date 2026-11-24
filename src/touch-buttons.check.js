@@ -73,6 +73,8 @@ async function exercise(page, label) {
   await page.waitForFunction(() => !/disponible/i.test(document.getElementById('mission-kicker').textContent));
   assert((await actions(page)).includes('brief'), `${label}: C'est parti`);
   await page.waitForFunction(() => window.__cotonou.chevrons() > 2, { timeout: 4000 });
+  const dot = await page.evaluate(() => window.__cotonou.chevronDot());
+  assert(dot > 0, `${label}: les chevrons pointent à l'envers (${dot})`);
 
   const dismiss = page.locator('#install-dismiss');
   if (await dismiss.isVisible()) await dismiss.tap();
@@ -144,7 +146,7 @@ async function exercise(page, label) {
       { x: punch.x + punch.width / 2, y: punch.y + punch.height / 2, id: 2 },
     ],
   });
-  await page.waitForTimeout(280);
+  await page.waitForTimeout(700);
   await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const moved = await page.evaluate(() => ({ x: window.__cotonou.x, punches: window.__cotonou.punches }));
   assert(moved.punches > origin.punches, `${label}: Frapper pendant le joystick`);
