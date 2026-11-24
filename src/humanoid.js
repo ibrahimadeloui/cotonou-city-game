@@ -10,6 +10,7 @@ import {
   Matrix4,
   Mesh,
   MeshLambertMaterial,
+  MeshStandardMaterial,
   RepeatWrapping,
   SphereGeometry,
   SRGBColorSpace,
@@ -160,7 +161,7 @@ gl_FragColor.rgb += gLift;`)
     vec3 faceCol = texture2D(faceMap, clamp(uv, 0.001, 0.999)).rgb;
     float mask = oval * front * useFace * (1.0 - hair);
     col = mix(col, faceCol, mask);
-    gLift = faceCol * mask * 0.42;
+    gLift = faceCol * mask * 0.16;
   } else if (vRegion > 0.5) {
     vec2 cell = floor(vLocal.xy * 95.0);
     float n = fract(sin(dot(cell, vec2(27.1, 91.7))) * 43758.5453);
@@ -178,7 +179,12 @@ gl_FragColor.rgb += gLift;`)
     col = robe > 0.5 ? shirtA : (outfit < 0.5 ? pantsA : pantsB);
   }
   diffuseColor.rgb = col;
-}`);
+}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+if (vRegion > 1.5) roughnessFactor = mix(0.42, 0.58, 1.0 - clamp(vHeadNrm.z, 0.0, 1.0));
+else if (vRegion > 0.5) roughnessFactor = 0.74;
+else roughnessFactor = 0.86;
+`);
     shader.uniforms.outfit.value = material.userData.outfit || 0;
     shader.uniforms.robe.value = material.userData.robe || 0;
     const colors = material.userData.colors;
@@ -275,7 +281,12 @@ export function createRiggedCharacter(gltf, { player = false, faceUrl, shadows =
     faceMap.colorSpace = SRGBColorSpace;
     faceMap.anisotropy = 4;
   }
-  const material = new MeshLambertMaterial({ color: 0xffffff });
+  const material = new MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.58,
+    metalness: 0.02,
+    envMapIntensity: 0.45,
+  });
   const { material: compiled } = applyHumanShader(material, { faceMap, player });
   if (!player && colors) compiled.userData.colors = colors;
   mesh.material = compiled;

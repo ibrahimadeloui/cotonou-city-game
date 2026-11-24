@@ -1,13 +1,21 @@
 import './style.css';
+import '@fontsource/oswald/latin-700.css';
 import {
   ACESFilmicToneMapping,
   PCFSoftShadowMap,
   PerspectiveCamera,
+  PMREMGenerator,
   Scene,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createAudio } from './audio.js';
 import { createCameraRig } from './camera.js';
 import {
@@ -48,7 +56,20 @@ const RADIO = [
 ];
 
 const quality = detectQuality();
+const savedTier = localStorage.getItem('cotonou-tier');
+quality.tier = savedTier === 'haute' || savedTier === 'moyenne' || savedTier === 'basse'
+  ? savedTier
+  : (quality.mobile ? 'moyenne' : 'haute');
+quality.shadows = quality.tier === 'haute';
+quality.pixelRatio = Math.min(window.devicePixelRatio || 1, pixelCap());
 const refs = {};
+refs.grade = localStorage.getItem('cotonou-grade') === 'sunset' ? 'sunset' : 'day';
+
+function pixelCap() {
+  if (quality.tier === 'basse') return 1;
+  if (quality.tier === 'haute') return quality.mobile ? 1.35 : 1.5;
+  return quality.mobile ? 1.15 : 1.25;
+}
 const scene = new Scene();
 const camera = new PerspectiveCamera(68, 1, 0.18, 1200);
 const renderer = new WebGLRenderer({
@@ -59,6 +80,25 @@ const renderer = new WebGLRenderer({
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.toneMapping = ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.25;
+const pmrem = new PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = quality.tier === 'basse' ? null : envTex;
+pmrem.dispose();
+let composer = null;
+
+function present() {
+  if (quality.tier !== 'haute') {
+    renderer.render(scene, camera);
+    return;
+  }
+  if (!composer) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(new Vector2(window.innerWidth, window.innerHeight), 0.16, 0.38, 0.88));
+    composer.addPass(new OutputPass());
+  }
+  composer.render();
+}
 renderer.setPixelRatio(quality.pixelRatio);
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = PCFSoftShadowMap;
@@ -196,6 +236,55 @@ const game = {
   if (steerButton) steerButton.textContent = game.steerMode === 'buttons' ? 'Direction : boutons' : 'Direction : joystick';
 }
 
+function applyTier(id) {
+  if (id === 'haute' || id === 'moyenne' || id === 'basse') quality.tier = id;
+  quality.shadows = quality.tier === 'haute';
+  renderer.shadowMap.enabled = quality.shadows;
+  if (refs.sun) {
+    refs.sun.castShadow = quality.shadows;
+    const size = quality.tier === 'haute' ? 1024 : 512;
+    if (refs.sun.shadow.mapSize.x !== size) {
+      refs.sun.shadow.mapSize.set(size, size);
+      if (refs.sun.shadow.map) {
+        refs.sun.shadow.map.dispose();
+        refs.sun.shadow.map = null;
+      }
+    }
+    refs.sun.shadow.radius = quality.tier === 'haute' ? 2.5 : 1;
+  }
+  scene.environment = quality.tier === 'basse' ? null : envTex;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelCap()));
+  if (quality.tier === 'basse') peds.density = 0.45;
+  const button = document.getElementById('btn-tier');
+  if (button) {
+    button.textContent = quality.tier === 'haute' ? 'Qualité : haute' : quality.tier === 'basse' ? 'Qualité : basse' : 'Qualité : moyenne';
+  }
+  localStorage.setItem('cotonou-tier', quality.tier);
+}
+
+function applyGrade(next) {
+  refs.grade = next === 'sunset' ? 'sunset' : 'day';
+  const button = document.getElementById('btn-grade');
+  if (button) button.textContent = refs.grade === 'sunset' ? 'Lumière : coucher de soleil' : 'Lumière : jour';
+  localStorage.setItem('cotonou-grade', refs.grade);
+}
+
+applyTier(quality.tier);
+applyGrade(refs.grade);
+document.getElementById('btn-tier')?.addEventListener('click', () => {
+  const order = ['haute', 'moyenne', 'basse'];
+  applyTier(order[(order.indexOf(quality.tier) + 1) % order.length]);
+});
+document.getElementById('btn-grade')?.addEventListener('click', () => {
+  applyGrade(refs.grade === 'sunset' ? 'day' : 'sunset');
+});
+const joySizeInput = document.getElementById('joy-size');
+const savedJoy = Number(localStorage.getItem('cotonou-joy'));
+const joySize = Number.isFinite(savedJoy) && savedJoy >= 80 ? savedJoy : 96;
+if (joySizeInput) joySizeInput.value = String(joySize);
+input.setJoySize(joySize);
+joySizeInput?.addEventListener('input', (event) => input.setJoySize(event.target.value));
+
 let cycle = 0.2;
 const fps = { t: 0, n: 0, level: 1, hide: 140 };
 let driveThrottle = 0;
@@ -220,6 +309,7 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
+  composer?.setSize(width, height);
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
 }
@@ -509,9 +599,9 @@ window.__cotonou = {
 
 function tuneQuality(level) {
   fps.level = level;
-  const cap = level <= 0 ? 1 : level === 1 ? 1.25 : 1.5;
+  const cap = level <= 0 ? 1 : level === 1 ? Math.min(1.25, pixelCap()) : pixelCap();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
-  peds.density = level <= 0 ? 0.45 : 1;
+  if (quality.tier !== 'basse') peds.density = level <= 0 ? 0.45 : DENSITIES[densityIndex].value;
   fps.hide = level <= 0 ? 70 : level === 1 ? 120 : 170;
 }
 
@@ -530,7 +620,7 @@ function frame(now) {
     lighting.update(dt, game.hour, focus, camera);
     animateWorld(dt, time);
     cinematic(dt);
-    renderer.render(scene, camera);
+    present();
     document.getElementById('loader').classList.add('hidden');
     requestAnimationFrame(frame);
     return;
@@ -553,7 +643,7 @@ function frame(now) {
     note('pause');
   }
   if (paused || story.holding()) {
-    renderer.render(scene, camera);
+    present();
     requestAnimationFrame(frame);
     return;
   }
@@ -563,7 +653,7 @@ function frame(now) {
     lighting.update(dt, game.hour, focus, camera);
     if (bustTimer > 2.7) finishBust();
     ui.update(game, camera);
-    renderer.render(scene, camera);
+    present();
     requestAnimationFrame(frame);
     return;
   }
@@ -757,7 +847,7 @@ function frame(now) {
     time,
   });
   ui.update(game, camera);
-  renderer.render(scene, camera);
+  present();
   requestAnimationFrame(frame);
 }
 
