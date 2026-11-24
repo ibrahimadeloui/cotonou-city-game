@@ -156,7 +156,7 @@ export function createInput() {
     const nx = (dx / mag) * (clamped / max);
     const ny = -((dy / mag) * (clamped / max));
     const strength = Math.hypot(nx, ny);
-    if (strength < 0.16) {
+    if (strength < 0.06) {
       joyX = 0;
       joyY = 0;
     } else {
@@ -208,7 +208,7 @@ export function createInput() {
   }
 
   function blocked(target) {
-    return Boolean(target?.closest?.('#start .card, #pause .card, #bust .card, #brief .card, #install-hint, #loader, a, input, textarea'));
+    return Boolean(target?.closest?.('#start .card, #pause .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
   }
 
   window.addEventListener('pointerdown', (event) => {

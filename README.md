@@ -46,7 +46,7 @@ Après un premier chargement, le jeu se met en cache (service worker) : JavaScri
 
 ## Missions, bagarre, voix
 
-Huit missions enchaînées (zem chronométré, pagne volé à Dantokpa, convoi du SUV vers le port, course de la Route des Pêches, protection d'un étal à Fidjrossè, fuite devant la police, patron du marché, retour à la Marina). La progression et l'argent sont dans le `localStorage`, donc aussi hors ligne. **F** ou le bouton **Frapper** enchaîne poing et coup de pied, **R** esquive. Frapper un passant augmente le niveau recherché. À zéro point de vie, Ibrahim revient de l'hôpital. Les répliques (français, avec quelques tours béninois) sont des fichiers audio dans le jeu, avec sous-titres.
+Huit missions enchaînées (zem chronométré, pagne volé à Dantokpa, convoi du SUV vers le port, course de la Route des Pêches, protection d'un étal à Fidjrossè, fuite devant la police, patron du marché, retour à la Marina). Une flèche jaune flotte devant Ibrahim, la mini-carte trace la route, et un faisceau marque l'objectif. Réussite ou échec s'affichent, avec réessai. La progression et l'argent restent dans le `localStorage`. La police poursuit selon les étoiles : on s'échappe en quittant le cercle de recherche, dans une ruelle ou en changeant de voiture. Se faire prendre mène au commissariat. **F** ou **Frapper** enchaîne poing et coup de pied, **R** esquive. Les répliques sont des fichiers audio, avec sous-titres.
 
 Les personnages restent le modèle **Quaternius** (CC0), léger pour un téléphone. Ce n'est pas un rendu façon grand jeu cinématographique : pas de visages uniques filmés, pas de ville photogrammétrée. La lumière reste simple pour que Safari iPhone et Chrome Android tiennent le rythme.
 

@@ -9,6 +9,7 @@ export const BLVD_Z = ROAD_ZS[0];
 export const MAP = { minX: -242, maxX: 242, minZ: 4, maxZ: 348 };
 
 export const SPAWN = { x: -160, z: 40, yaw: Math.PI / 2 };
+export const COMMISSARIAT = { x: -46, z: 92, yaw: Math.PI / 2 };
 
 export const PARKED = [
   { type: 'suv', x: -151, z: 40.5, yaw: Math.PI / 2 },
@@ -34,10 +35,10 @@ export const PLACES = [
 ];
 
 export const SPECS = {
-  suv: { max: 26, reverse: 7, turn: 1.7, radius: 1.2, cam: 9.6, reach: 10 },
-  car: { max: 20, reverse: 6, turn: 1.9, radius: 1.05, cam: 8.8, reach: 8 },
-  zem: { max: 19, reverse: 4.5, turn: 2.75, radius: 0.66, cam: 7.3, reach: 4.3 },
-  police: { max: 27, reverse: 6, turn: 1.95, radius: 1.12, cam: 9.4, reach: 0 },
+  suv: { max: 28, reverse: 9, turn: 2.35, radius: 1.2, cam: 9.6, reach: 10 },
+  car: { max: 22, reverse: 8, turn: 2.5, radius: 1.05, cam: 8.8, reach: 8 },
+  zem: { max: 21, reverse: 6, turn: 3.4, radius: 0.66, cam: 7.3, reach: 4.3 },
+  police: { max: 30, reverse: 8, turn: 2.6, radius: 1.12, cam: 9.4, reach: 0 },
 };
 
 export const WALK_SPEED = 4.3;
@@ -101,7 +102,7 @@ export function detectQuality() {
     traffic: mobile ? 8 : 13,
     palms: mobile ? 42 : 68,
     ocean: mobile ? 28 : 48,
-    pixelRatio: Math.min(window.devicePixelRatio || 1, mobile ? 1.3 : 1.6),
+    pixelRatio: Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.5),
     antialias: !mobile,
   };
 }

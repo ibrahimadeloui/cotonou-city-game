@@ -119,6 +119,7 @@ async function exercise(page, label) {
   await page.waitForTimeout(250);
   const after = await page.evaluate(() => window.__cotonou.focusState());
   assert(after && after.hp < foe, `${label}: la vie du passant ne baisse pas (${foe} → ${JSON.stringify(after)})`);
+  await page.evaluate(() => window.__cotonou.setStars(0));
 
   const origin = await page.evaluate(() => ({ x: window.__cotonou.x, punches: window.__cotonou.punches }));
   const joy = await page.locator('#joystick').boundingBox();

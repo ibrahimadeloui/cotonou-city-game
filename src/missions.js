@@ -29,9 +29,9 @@ export function createMissions(scene) {
     side: DoubleSide,
   });
   const diamond = new Mesh(new OctahedronGeometry(0.55), diamondMat);
-  diamond.position.y = 3.2;
-  const beam = new Mesh(new CylinderGeometry(0.12, 0.42, 3.2, 6, 1, true), beamMat);
-  beam.position.y = 1.6;
+  diamond.position.y = 18.2;
+  const beam = new Mesh(new CylinderGeometry(0.28, 1.15, 18, 8, 1, true), beamMat);
+  beam.position.y = 9;
   const ring = new Mesh(new RingGeometry(0.75, 1.05, 20), ringMat);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.12;
@@ -80,7 +80,7 @@ export function createMissions(scene) {
         const point = mission.a;
         group.visible = true;
         group.position.set(point.x, 0, point.z);
-        diamond.position.y = 3.15 + Math.sin(performance.now() / 280) * 0.28;
+        diamond.position.y = 17.6 + Math.sin(performance.now() / 280) * 0.45;
         diamond.rotation.y += dt * 1.4;
         return;
       }
@@ -95,7 +95,7 @@ export function createMissions(scene) {
       }
       const point = mission.phase === 'pickup' ? mission.a : mission.b;
       group.position.set(point.x, 0, point.z);
-      diamond.position.y = 3.15 + Math.sin(performance.now() / 280) * 0.28;
+      diamond.position.y = 17.6 + Math.sin(performance.now() / 280) * 0.45;
       diamond.rotation.y += dt * 1.4;
       const color = mission.phase === 'pickup' ? 0xffd45a : 0x3dd68c;
       diamondMat.color.setHex(color);
