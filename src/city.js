@@ -243,7 +243,7 @@ function buildPaths() {
 }
 
 function addRoads(geoms) {
-  const asphalt = 0x3c4450;
+  const asphalt = 0x6d7684;
   const walk = 0xd9d0c3;
   for (const x of ROAD_XS) {
     for (const z of ROAD_ZS) {

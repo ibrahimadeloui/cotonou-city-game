@@ -238,7 +238,10 @@ export function createInput() {
     };
     pointers.set(event.pointerId, record);
     if (record.kind === 'joy') updateJoy(record);
-    if (kind === 'run') syncRun();
+    if (kind === 'run') {
+      syncRun();
+      jumpQueued = true;
+    }
     if (kind === 'vehicle') enterQueued = true;
     if (kind === 'horn') hornQueued = true;
     if (kind === 'pause') pauseQueued = true;
@@ -272,7 +275,6 @@ export function createInput() {
   const endPointer = (event) => releasePointer(event.pointerId);
   window.addEventListener('pointerup', endPointer);
   window.addEventListener('pointercancel', endPointer);
-  window.addEventListener('lostpointercapture', endPointer);
 
   window.addEventListener('contextmenu', (event) => event.preventDefault());
 
@@ -335,6 +337,9 @@ export function createInput() {
       lookDx = 0;
       lookDy = 0;
       return look;
+    },
+    held() {
+      return { run: runHeld };
     },
   };
 }

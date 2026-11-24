@@ -33,10 +33,18 @@ export function setupPwa(toast) {
   window.addEventListener('offline', () => toast('Tu es hors ligne. La ville reste jouable.'));
   window.addEventListener('online', () => toast('Réseau retrouvé.'));
 
-  registerSW({
+  const banner = document.getElementById('update-banner');
+  const reload = document.getElementById('update-reload');
+  const updateSW = registerSW({
     immediate: true,
+    onNeedRefresh() {
+      banner?.classList.remove('hidden');
+    },
     onOfflineReady() {
       toast('Cotonou est prêt hors ligne.');
     },
+  });
+  reload?.addEventListener('click', () => {
+    updateSW(true);
   });
 }

@@ -78,12 +78,12 @@ export function districtAt(x, z) {
   return 'Centre-ville';
 }
 
-/** Plus de temps en fin d'après-midi pour garder l'heure dorée. */
+/** La journée est longue. La nuit est un court passage, encore lisible. */
 export function hourFromCycle(u) {
   const x = ((u % 1) + 1) % 1;
-  if (x < 0.42) return 16.15 + (x / 0.42) * 3.7;
-  const v = (x - 0.42) / 0.58;
-  return (19.85 + v * (16.15 + 24 - 19.85)) % 24;
+  if (x < 0.78) return 7.5 + (x / 0.78) * 10;
+  const v = (x - 0.78) / 0.22;
+  return (17.5 + v * (24 - 17.5 + 7.5)) % 24;
 }
 
 export function detectQuality() {

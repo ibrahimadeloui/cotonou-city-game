@@ -1,11 +1,11 @@
 :root {
-  color-scheme: dark;
-  --ink: #f7f1e1;
-  --gold: #f0c14a;
-  --green: #009e49;
-  --red: #e23d3d;
-  --panel: rgba(12, 18, 28, 0.78);
-  --line: rgba(240, 193, 74, 0.4);
+  color-scheme: light;
+  --ink: #1b140c;
+  --gold: #b86a08;
+  --green: #0b7a45;
+  --red: #c62828;
+  --panel: rgba(255, 249, 240, 0.94);
+  --line: rgba(184, 106, 8, 0.45);
   font-family: "Segoe UI", "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
@@ -15,7 +15,7 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #102033;
+  background: #f6efe4;
   touch-action: none;
   overscroll-behavior: none;
   user-select: none;
@@ -38,7 +38,7 @@ html, body {
 }
 
 #vignette {
-  background: radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 0, 0.38) 100%);
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.12) 100%);
   z-index: 2;
 }
 
@@ -110,7 +110,7 @@ html, body {
   font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #ffe08a;
+  color: #8a4e08;
 }
 
 #district, #jobs, #clock {
@@ -254,7 +254,7 @@ html, body {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 12;
+  z-index: 36;
   pointer-events: none;
 }
 
@@ -366,7 +366,8 @@ html, body {
   margin: 0;
   padding: 10px 14px;
   border-radius: 14px;
-  background: rgba(12, 18, 28, 0.9);
+  background: rgba(255, 249, 240, 0.96);
+  color: var(--ink);
   border: 1px solid var(--line);
   font-size: 16px;
   text-align: center;
@@ -378,20 +379,20 @@ html, body {
 
 #install-hint {
   position: fixed;
-  z-index: 30;
-  top: 36%;
+  z-index: 38;
+  top: calc(8px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  width: min(440px, calc(100% - 120px));
+  width: min(420px, calc(100% - 24px));
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   padding: 12px 14px;
-  background: rgba(12, 18, 28, 0.94);
+  background: rgba(255, 249, 240, 0.96);
+  color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 16px;
-  color: var(--ink);
 }
 
 #install-hint.hidden { display: none; }
@@ -412,9 +413,10 @@ html, body {
   width: 74px;
   height: 74px;
   border-radius: 50%;
-  border: 3px solid rgba(240, 193, 74, 0.75);
-  background: rgba(12, 18, 28, 0.88);
+  border: 3px solid rgba(184, 106, 8, 0.85);
+  background: rgba(255, 248, 236, 0.96);
   color: var(--ink);
+  touch-action: none;
   font: inherit;
   font-size: 15px;
   font-weight: 800;
@@ -438,13 +440,57 @@ html, body {
 }
 
 #buttons button.held {
-  background: var(--gold);
+  background: #f0c14a;
   color: #1c1406;
   transform: scale(0.94);
   border-color: #fff4c8;
 }
 
 #buttons button.held small { opacity: 0.85; }
+
+label.bright {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+#brightness {
+  width: 100%;
+  accent-color: #e07a3d;
+  touch-action: none;
+}
+
+#update-banner {
+  position: fixed;
+  z-index: 50;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fff6e4;
+  color: #1b140c;
+  border: 2px solid #e07a3d;
+  border-radius: 14px;
+}
+
+#update-banner.hidden { display: none; }
+
+#update-banner button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #e07a3d;
+  color: #1b140c;
+  font: inherit;
+  font-weight: 800;
+  padding: 0 14px;
+}
 
 .overlay {
   position: fixed;
