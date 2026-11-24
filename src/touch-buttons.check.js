@@ -178,18 +178,34 @@ async function exercise(page, label) {
       { x: punchNow.x + punchNow.width / 2, y: punchNow.y + punchNow.height / 2, id: 2 },
     ],
   });
-  await page.waitForTimeout(700);
+  await page.evaluate(() => {
+    const btn = document.getElementById('btn-punch');
+    const r = btn.getBoundingClientRect();
+    btn.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: false,
+      button: 0,
+      clientX: r.x + r.width / 2,
+      clientY: r.y + r.height / 2,
+    }));
+  });
+  try {
+    await page.waitForFunction((n) => window.__cotonou.punches > n, origin.punches, { timeout: 2500 });
+  } catch {
+    /* le message ci-dessous donne le détail */
+  }
+  try {
+    await page.waitForFunction((ox) => Math.abs(window.__cotonou.x - ox) > 0.2, origin.x, { timeout: 2500 });
+  } catch {
+    /* le message ci-dessous donne le détail */
+  }
   await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  const moved = await page.evaluate(({ x, y }) => {
-    const el = document.elementFromPoint(x, y);
-    return {
-      x: window.__cotonou.x,
-      punches: window.__cotonou.punches,
-      hit: el ? (el.id || el.getAttribute('aria-label') || el.tagName) : 'none',
-    };
-  }, { x: punch.x + punch.width / 2, y: punch.y + punch.height / 2 });
-  assert(moved.punches > origin.punches, `${label}: Frapper pendant le joystick (${moved.hit}, ${origin.punches}→${moved.punches})`);
-  assert(Math.abs(moved.x - origin.x) > 0.2, `${label}: le joystick ne déplace pas en multi-touch`);
+  const moved = await page.evaluate(() => ({ x: window.__cotonou.x, punches: window.__cotonou.punches }));
+  assert(moved.punches > origin.punches, `${label}: Frapper pendant le joystick (${origin.punches}→${moved.punches})`);
+  assert(Math.abs(moved.x - origin.x) > 0.2, `${label}: le joystick ne déplace pas en multi-touch (${(moved.x - origin.x).toFixed(2)})`);
 
   await tap(page, '#btn-pause');
   await page.waitForFunction(() => !document.getElementById('pause').classList.contains('hidden'));
@@ -253,6 +269,12 @@ async function assertFluid(page, label) {
 async function driveLayout(page, label, type) {
   const entered = await page.evaluate((kind) => window.__cotonou.enterType(kind), type);
   assert(entered, `${label}: monter ${type}`);
+  const parts = await page.evaluate(() => ({
+    wheels: window.__cotonou.wheelCount(),
+    lights: window.__cotonou.lightCount(),
+  }));
+  assert(parts.wheels === (type === 'zem' ? 2 : 4), `${label}: ${type} a ${parts.wheels} roues`);
+  assert(parts.lights >= 1, `${label}: ${type} n'a pas de phares`);
   await page.waitForFunction(() => document.body.dataset.drive === '1');
   assert(await page.locator('#btn-punch').isHidden(), `${label}: Frapper reste visible en ${type}`);
   assert(await page.locator('#btn-gas').isVisible(), `${label}: accélérateur ${type}`);

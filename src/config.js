@@ -13,6 +13,7 @@ export const COMMISSARIAT = { x: -46, z: 92, yaw: Math.PI / 2 };
 
 export const PARKED = [
   { type: 'suv', x: -151, z: 40.5, yaw: Math.PI / 2 },
+  { type: 'car', x: -140, z: 49, yaw: Math.PI / 2 },
   { type: 'zem', x: -132, z: 37.5, yaw: Math.PI / 2 },
   { type: 'zem', x: -116, z: 42, yaw: Math.PI / 2 },
   { type: 'zem', x: -100, z: 36.5, yaw: 0.35 },
@@ -95,11 +96,11 @@ export function detectQuality() {
   return {
     mobile,
     shadows: !mobile,
-    peds: mobile ? 12 : 18,
-    crowd: mobile ? 28 : 52,
-    crowdFull: mobile ? 8 : 16,
-    crowdHide: mobile ? 72 : 118,
-    impostors: mobile ? 40 : 72,
+    peds: mobile ? 14 : 22,
+    crowd: mobile ? 34 : 58,
+    crowdFull: mobile ? 10 : 18,
+    crowdHide: mobile ? 78 : 124,
+    impostors: mobile ? 64 : 100,
     traffic: mobile ? 8 : 13,
     palms: mobile ? 42 : 68,
     ocean: mobile ? 28 : 48,

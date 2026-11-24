@@ -111,7 +111,7 @@ export function createCity(scene, refs, quality) {
   ground.rotateX(-Math.PI / 2);
   ground.translate(0, 0, 8 + depth / 2);
   scaleUv(ground, 560 / 3.2, depth / 3.2);
-  geoms.push(paint(ground, 0xa78462));
+  geoms.push(paint(ground, 0x8d4528));
   geoms.push(coloredBox(560, 0.025, 14, 0, 0.012, 15, 0xd2b48c));
 
   addRoads(geoms);
@@ -181,7 +181,7 @@ export function createCity(scene, refs, quality) {
   const boats = addBoats(scene, rand);
   const flags = addFlags(scene);
   addSigns(scene);
-  addStreetDressing(scene);
+  addStreetDressing(scene, refs.lampMat);
   addBillboards(scene);
   const clouds = addClouds(scene, refs, rand);
 
@@ -198,7 +198,7 @@ export function createCity(scene, refs, quality) {
   });
   const cityMesh = new Mesh(cityGeom, cityMat);
   cityMesh.receiveShadow = quality.shadows;
-  cityMesh.castShadow = quality.shadows;
+  cityMesh.castShadow = quality.tier === 'haute';
   scene.add(cityMesh);
 
   const oceanGeo = new PlaneGeometry(1800, 780, quality.ocean, Math.max(12, Math.floor(quality.ocean * 0.55)));
@@ -282,8 +282,10 @@ function buildPaths() {
 }
 
 function addRoads(geoms) {
-  const asphalt = 0x3a424e;
-  const walk = 0xd9d0c3;
+  const asphalt = 0x232830;
+  const walk = 0xcfc4b4;
+  const laterite = 0xb24a2c;
+  const wear = 0x15181e;
   for (const x of ROAD_XS) {
     for (const z of ROAD_ZS) {
       geoms.push(coloredBox(ROAD_W + 0.4, 0.06, halfZ(z) * 2 + 0.4, x, 0.045, z, asphalt));
@@ -298,6 +300,9 @@ function addRoads(geoms) {
       const mid = (x1 + x2) / 2;
       const len = Math.max(0.5, x2 - x1);
       geoms.push(coloredBox(len, 0.06, hz * 2, mid, 0.045, z, asphalt));
+      geoms.push(coloredBox(len, 0.03, 3.4, mid, 0.02, z + hz + 3.1, laterite));
+      geoms.push(coloredBox(len, 0.03, 3.4, mid, 0.02, z - hz - 3.1, laterite));
+      geoms.push(coloredBox(1.6, 0.015, 0.9, mid + len * 0.18, 0.1, z + 0.9, wear));
       if (boulevard) {
         geoms.push(coloredBox(len, 0.05, 2.6, mid, 0.06, z + hz + 1.3, 0xe6d7c0));
         geoms.push(coloredBox(len, 0.04, 7.2, mid, 0.03, z - hz - 3.8, 0xe8d4a4));
@@ -307,6 +312,8 @@ function addRoads(geoms) {
       } else {
         geoms.push(coloredBox(len, 0.05, 2.2, mid, 0.06, z + hz + 1.15, walk));
         geoms.push(coloredBox(len, 0.05, 2.2, mid, 0.06, z - hz - 1.15, walk));
+        geoms.push(coloredBox(len, 0.02, 0.1, mid, 0.09, z + hz - 0.4, 0xf4f4f4));
+        geoms.push(coloredBox(len, 0.02, 0.1, mid, 0.09, z - hz + 0.4, 0xf4f4f4));
       }
       const dashes = Math.max(1, Math.floor(len / 10));
       for (let d = 0; d < dashes; d += 1) {
@@ -324,6 +331,10 @@ function addRoads(geoms) {
       geoms.push(coloredBox(ROAD_W, 0.06, len, x, 0.045, mid, asphalt));
       geoms.push(coloredBox(2.2, 0.05, len, x + ROAD_W / 2 + 1.15, 0.06, mid, walk));
       geoms.push(coloredBox(2.2, 0.05, len, x - ROAD_W / 2 - 1.15, 0.06, mid, walk));
+      geoms.push(coloredBox(3.2, 0.03, len, x + ROAD_W / 2 + 3.2, 0.02, mid, laterite));
+      geoms.push(coloredBox(3.2, 0.03, len, x - ROAD_W / 2 - 3.2, 0.02, mid, laterite));
+      geoms.push(coloredBox(0.1, 0.02, len, x + ROAD_W / 2 - 0.45, 0.09, mid, 0xf4f4f4));
+      geoms.push(coloredBox(0.1, 0.02, len, x - ROAD_W / 2 + 0.45, 0.09, mid, 0xf4f4f4));
       const dashes = Math.max(1, Math.floor(len / 10));
       for (let d = 0; d < dashes; d += 1) {
         const dz = z1 + (len / dashes) * d + 2;
@@ -1048,7 +1059,7 @@ function addClouds(scene, refs, rand) {
   tex.colorSpace = SRGBColorSpace;
   refs.cloudMat = new SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.7 });
   const clouds = [];
-  for (let i = 0; i < 8; i += 1) {
+  for (let i = 0; i < 16; i += 1) {
     const sprite = new Sprite(refs.cloudMat);
     sprite.position.set(-260 + rand() * 520, 70 + rand() * 40, -40 + rand() * 300);
     const s = 50 + rand() * 50;
@@ -1076,7 +1087,7 @@ function signTexture(label, color) {
   return tex;
 }
 
-function addStreetDressing(scene) {
+function addStreetDressing(scene, lampMat) {
   const signs = STALLS.map((stall) => [stall.name.split(' ')[0].toUpperCase(), '#f0c14a', stall.x, stall.z]);
   for (const [label, color, x, z] of signs) {
     const stall = new Mesh(new BoxGeometry(3.2, 1.1, 2.2), new MeshLambertMaterial({ color: 0x8a5a32 }));
@@ -1085,7 +1096,9 @@ function addStreetDressing(scene) {
     roof.position.set(x, 1.2, z);
     const board = new Mesh(new PlaneGeometry(2.4, 0.7), new MeshLambertMaterial({ map: signTexture(label, color) }));
     board.position.set(x, 1.7, z + 1.2);
-    scene.add(stall, roof, board);
+    const bulb = new Mesh(new SphereGeometry(0.16, 8, 6), lampMat);
+    bulb.position.set(x, 2.15, z);
+    scene.add(stall, roof, board, bulb);
   }
   const wireMat = new MeshBasicMaterial({ color: 0x222222 });
   for (let i = 0; i < 5; i += 1) {

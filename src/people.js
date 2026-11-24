@@ -222,7 +222,41 @@ export function createIbrahim(shadows, faceUrl) {
   return g;
 }
 
+function smooth(t) {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+}
+
 export function updatePlayer(player, dt, input, collision, cameraYaw) {
+  if (player.board) {
+    player.board.t += dt;
+    const e = smooth(player.board.t / player.board.dur);
+    const from = player.board.from;
+    const to = player.board.to;
+    player.mesh.position.set(
+      from.x + (to.x - from.x) * e,
+      from.y + (to.y - from.y) * e,
+      from.z + (to.z - from.z) * e,
+    );
+    if (player.board.kind === 'in') {
+      player.mesh.scale.setScalar(1 + (player.board.s - 1) * e);
+      poseHuman(player.mesh, player.board.t * 9, e < 0.7 ? 'walk' : 'sit', dt);
+      if (e >= 1) {
+        player.mesh.position.set(to.x, to.y, to.z);
+        player.mesh.rotation.set(0, 0, 0);
+        player.mesh.scale.setScalar(player.board.s);
+        player.board = null;
+        poseHuman(player.mesh, 0, 'sit', dt);
+      }
+      return;
+    }
+    player.pos.x = player.mesh.position.x;
+    player.pos.z = player.mesh.position.z;
+    player.pos.y = 0;
+    poseHuman(player.mesh, player.board.t * 9, 'walk', dt);
+    if (e >= 1) player.board = null;
+    return;
+  }
   if (player.vehicle) {
     player.speed = 0;
     poseHuman(player.mesh, 0, 'sit', dt);
@@ -366,11 +400,23 @@ export function updatePeds(peds, dt, player, paths, onHit, camera, quality) {
     visible.add(item.i);
     if (item.dist < 36 && fullSet.size < fullCap) fullSet.add(item.i);
   }
+  const shadowIds = new Set();
+  if (quality?.shadows) {
+    for (const item of ranked) {
+      if (item.dist >= 12) break;
+      shadowIds.add(item.i);
+      if (shadowIds.size >= 2) break;
+    }
+  }
   const distOf = new Array(peds.length);
   for (const item of ranked) distOf[item.i] = item.dist;
   for (let i = 0; i < peds.length; i += 1) {
     const ped = peds[i];
     const dist = distOf[i];
+    if (ped.riding) {
+      ped.mesh.visible = true;
+      continue;
+    }
     const hidden = Boolean(camera) && !visible.has(i);
     ped.mesh.visible = !hidden;
     if (ped.down) {
@@ -403,6 +449,18 @@ export function updatePeds(peds, dt, player, paths, onHit, camera, quality) {
       }
       placeOnPath(ped);
       ped.yaw = Math.atan2((b.x - a.x) * ped.dir, (b.z - a.z) * ped.dir);
+      if (frame % 2 === i % 2) {
+        for (let j = 0; j < peds.length; j += 1) {
+          if (j === i || peds[j].down) continue;
+          const dx = ped.pos.x - peds[j].pos.x;
+          const dz = ped.pos.z - peds[j].pos.z;
+          const gap = Math.hypot(dx, dz);
+          if (gap > 0.05 && gap < 0.9) {
+            ped.pos.x += (dx / gap) * (0.9 - gap) * 0.65;
+            ped.pos.z += (dz / gap) * (0.9 - gap) * 0.65;
+          }
+        }
+      }
     }
     ped.phase += dt * ped.speed * 2.4;
     const flee = (player.attackT || 0) > 0
@@ -422,10 +480,25 @@ export function updatePeds(peds, dt, player, paths, onHit, camera, quality) {
       if (Math.hypot(dx, dz) < 8) ped.yaw = Math.atan2(dx, dz);
     }
     ped.mesh.userData.animScale = walking && !flee ? ped.speed / 1.35 : 1;
-    ped.mesh.position.set(ped.pos.x, 0, ped.pos.z);
+    const seated = ped.behavior === 'sit' ? 0.42 : 0;
+    ped.mesh.position.set(ped.pos.x, seated, ped.pos.z);
+    const cast = shadowIds.has(i);
+    if (cast) {
+      if (!ped.mesh.userData.castOn) {
+        ped.mesh.userData.castOn = true;
+        ped.mesh.traverse((obj) => {
+          if (obj.isMesh && !obj.userData.blob) obj.castShadow = true;
+        });
+      }
+    } else if (ped.mesh.userData.castOn) {
+      ped.mesh.userData.castOn = false;
+      ped.mesh.traverse((obj) => {
+        if (obj.isMesh) obj.castShadow = false;
+      });
+    }
     ped.mesh.rotation.set(0, ped.yaw, 0);
     if (hidden) continue;
-    const anim = walking ? 'walk' : ped.behavior === 'vendor' ? 'vendor' : 'idle';
+    const anim = ped.behavior === 'sit' ? 'sit' : walking ? 'walk' : ped.behavior === 'vendor' ? 'vendor' : 'idle';
     const step = fullSet.has(i) ? 1 : dist < 68 ? 3 : 5;
     if (step === 1 || frame % step === i % step) poseHuman(ped.mesh, ped.phase, anim, dt * step);
 
