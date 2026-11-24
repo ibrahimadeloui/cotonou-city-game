@@ -12,6 +12,10 @@ export function createAudio() {
   let motoOsc = null;
   let motoGain = null;
   let ready = false;
+  let talk = 0;
+  let talkTarget = 0;
+  let talkClock = 0;
+  let clipStop = null;
 
   function ensure() {
     if (ctx) return;
@@ -132,19 +136,23 @@ export function createAudio() {
     update({ driving, speed, maxSpeed, nearOcean, wanted, time, x = 0, z = 0, vehicles = [] }) {
       if (!ready) return;
       const now = ctx.currentTime;
-      const eg = driving ? 0.018 + (Math.abs(speed) / Math.max(1, maxSpeed)) * 0.035 : 0;
+      const step = talkClock ? Math.min(0.05, Math.max(0, now - talkClock)) : 0.016;
+      talkClock = now;
+      talk += (talkTarget - talk) * (1 - Math.exp(-8 * step));
+      const quiet = 1 - talk * 0.84;
+      const eg = (driving ? 0.018 + (Math.abs(speed) / Math.max(1, maxSpeed)) * 0.035 : 0) * quiet;
       engineGain.gain.setTargetAtTime(eg, now, 0.08);
       if (driving) engineOsc.frequency.setTargetAtTime(46 + Math.abs(speed) * 5.5, now, 0.08);
-      oceanGain.gain.setTargetAtTime(nearOcean ? 0.02 : 0.004, now, 0.3);
+      oceanGain.gain.setTargetAtTime((nearOcean ? 0.02 : 0.004) * quiet, now, 0.2);
       sirenGain.gain.setTargetAtTime(wanted > 0 ? 0.01 : 0, now, 0.1);
       if (wanted > 0) {
         sirenOsc.frequency.setTargetAtTime(Math.sin(time * 9) > 0 ? 680 : 480, now, 0.05);
       }
       const market = Math.max(0, 1 - Math.hypot(x, z - 134) / 42);
-      marketGain.gain.setTargetAtTime(market * market * 0.045, now, 0.2);
+      marketGain.gain.setTargetAtTime(market * market * 0.045 * quiet, now, 0.12);
       const maquis = Math.max(0, 1 - Math.hypot(x + 148, z - 28) / 28);
       const wobble = 0.7 + Math.sin(time * 1.7) * 0.3;
-      musicGain.gain.setTargetAtTime(maquis * maquis * 0.02 * wobble, now, 0.15);
+      musicGain.gain.setTargetAtTime(maquis * maquis * 0.02 * wobble * quiet, now, 0.1);
       let moto = 0;
       let hz = 90;
       for (const vehicle of vehicles) {
@@ -161,7 +169,7 @@ export function createAudio() {
         }
         if (vehicle.hornT <= 0) vehicle.hornSound = false;
       }
-      motoGain.gain.setTargetAtTime(moto * 0.03, now, 0.08);
+      motoGain.gain.setTargetAtTime(moto * 0.03 * quiet, now, 0.08);
       motoOsc.frequency.setTargetAtTime(hz, now, 0.08);
     },
     blip(kind) {
@@ -171,6 +179,54 @@ export function createAudio() {
       } else if (kind === 'pick') tone(440, 0.12);
       else if (kind === 'bad') tone(140, 0.28, 'sawtooth', 0.04);
       else tone(360, 0.1);
+    },
+    setTalking(on) { talkTarget = on ? 1 : 0; },
+    context() {
+      try { ensure(); } catch { return null; }
+      return ctx;
+    },
+    stopClip() {
+      if (clipStop) clipStop();
+      clipStop = null;
+    },
+    playClip(url, { pan = 0, onend } = {}) {
+      try { ensure(); } catch { onend?.(); return; }
+      if (!ctx) { onend?.(); return; }
+      this.stopClip();
+      fetch(url).then((res) => res.arrayBuffer()).then((raw) => ctx.decodeAudioData(raw)).then((buffer) => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const high = ctx.createBiquadFilter();
+        high.type = 'highpass';
+        high.frequency.value = 160;
+        const presence = ctx.createBiquadFilter();
+        presence.type = 'peaking';
+        presence.frequency.value = 2800;
+        presence.Q.value = 0.9;
+        presence.gain.value = 5;
+        const gain = ctx.createGain();
+        gain.gain.value = 1.7;
+        const panner = ctx.createStereoPanner();
+        panner.pan.value = Math.max(-0.45, Math.min(0.45, pan));
+        source.connect(high);
+        high.connect(presence);
+        presence.connect(gain);
+        gain.connect(panner);
+        panner.connect(ctx.destination);
+        let ended = false;
+        const done = () => {
+          if (ended) return;
+          ended = true;
+          clipStop = null;
+          onend?.();
+        };
+        source.onended = done;
+        source.start();
+        clipStop = () => {
+          try { source.stop(); } catch { /* déjà fini */ }
+          done();
+        };
+      }).catch(() => onend?.());
     },
     horn() {
       tone(220, 0.18, 'square', 0.03);

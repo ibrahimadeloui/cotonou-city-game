@@ -1,5 +1,5 @@
 import { PLACES } from './config.js';
-import { STORY } from './story-data.js';
+import { sceneFor, STORY } from './story-data.js';
 
 const SAVE_KEY = 'cotonou-city-save';
 
@@ -43,6 +43,12 @@ export function createStory(missions) {
   let pendingPay = 0;
   let wantedArmed = false;
   let nag = 0;
+  let scene = null;
+  let introDone = false;
+  let outroDone = false;
+  let zoneIdle = 0;
+  let objectiveText = '';
+  let zoneHint = '';
   function showResult(mode, title, text) {
     resultMode = mode;
     document.getElementById('result-title').textContent = title;
@@ -55,6 +61,7 @@ export function createStory(missions) {
   const hooks = {
     toast() {},
     say() {},
+    sayLine() {},
     reward() {},
     setWanted() {},
     persist() {},
@@ -79,6 +86,7 @@ export function createStory(missions) {
     if (current.kind === 'protect') body = `${stepLabel} — reste sur place, ${Math.ceil(Math.max(0, holdNeed - held))} s`;
     else if (current.vehicle && !extra.vehicleOk) body = `${stepLabel} — monte dans ${current.vehicle === 'zem' ? 'un zemidjan' : 'le SUV'}, puis suis la flèche`;
     else if (current.limit) body = `${stepLabel} — suis la flèche, ${Math.ceil(Math.max(0, timer))} s`;
+    if (objectiveText) body = `${objectiveText} · + ${current.pay.toLocaleString('fr-FR')} FCFA`;
     missions.lock({
       story: true,
       storyTitle: current.title,
@@ -113,8 +121,7 @@ export function createStory(missions) {
     boss = null;
     wantedArmed = false;
     pendingPay = current.pay;
-    const reputation = 20;
-    showResult('ok', 'Mission réussie', `${current.title}\n${current.objective || current.body}\n+ ${current.pay.toLocaleString('fr-FR')} FCFA\n+ ${reputation} réputation`);
+    showResult('ok', 'MISSION RÉUSSIE', `${current.title}\n+ ${current.pay.toLocaleString('fr-FR')} FCFA`);
   }
 
   function fail(text) {
@@ -122,10 +129,101 @@ export function createStory(missions) {
     showResult('fail', 'Mission ratée', text);
   }
 
+  function fastPlay() {
+    return typeof window !== 'undefined' && window.__cotonouFast;
+  }
+
+  function hideScene() {
+    scene = null;
+    document.getElementById('letterbox')?.classList.remove('on');
+    document.body.dataset.scene = '0';
+  }
+
+  function openScene(lines, place, kind) {
+    if (!lines?.length) return;
+    scene = { lines, i: 0, wait: 0, place, kind };
+    document.getElementById('letterbox')?.classList.add('on');
+    document.body.dataset.scene = '1';
+    hooks.sayLine({ ...lines[0], hold: true });
+  }
+
+  function closeScene(kind) {
+    hideScene();
+    const current = mission();
+    if (!current) return;
+    if (kind === 'intro') {
+      introDone = true;
+      const steps = stepsOf(current);
+      if ((current.kind === 'reach' || current.kind === 'convoy') && step < steps.length - 1) step += 1;
+      const staged = sceneFor(current.id);
+      objectiveText = staged?.objective || `Objectif : ${current.objective || current.body}`;
+      zoneHint = '';
+      hooks.toast(`${objectiveText} · + ${current.pay.toLocaleString('fr-FR')} FCFA`);
+      pin();
+      if (staged?.mid) hooks.sayLine(staged.mid);
+    }
+    if (kind === 'outro') {
+      outroDone = true;
+      succeed();
+    }
+  }
+
   return {
     save,
     length: STORY.length,
     holding() { return briefing || resultMode !== null; },
+    sceneOn() { return Boolean(scene); },
+    zoneHint() { return zoneHint; },
+    objective() { return objectiveText; },
+    skipScene() {
+      if (!scene) return;
+      const kind = scene.kind;
+      hooks.sayLine && null;
+      closeScene(kind);
+    },
+    tryTalk(player) {
+      const current = mission();
+      if (!running || !current || scene || introDone || fastPlay()) return false;
+      const staged = sceneFor(current.id);
+      if (!staged || staged.introAt === 'start') return false;
+      const steps = stepsOf(current);
+      const place = spot(steps[Math.min(step, steps.length - 1)]);
+      const dist = Math.hypot(player.pos.x - place.x, player.pos.z - place.z);
+      if (dist > 18) return false;
+      openScene(staged.intro, place, 'intro');
+      return true;
+    },
+    tickScene(dt, player, peds) {
+      if (!scene) return null;
+      scene.wait += dt;
+      const line = scene.lines[scene.i];
+      const origin = scene.place || player.pos;
+      for (const ped of peds || []) {
+        if (ped.riding || ped.down) continue;
+        const d = Math.hypot(ped.pos.x - origin.x, ped.pos.z - origin.z);
+        if (d < 9) ped.yaw = Math.atan2(player.pos.x - ped.pos.x, player.pos.z - ped.pos.z);
+      }
+      if (scene.wait > (line?.dur || 2.6)) {
+        scene.i += 1;
+        scene.wait = 0;
+        if (scene.i >= scene.lines.length) {
+          const kind = scene.kind;
+          closeScene(kind);
+          return null;
+        }
+        hooks.sayLine({ ...scene.lines[scene.i], hold: true });
+      }
+      const cam = scene?.lines?.[scene.i]?.cam || { dx: 3.2, dy: 1.7, dz: 2 };
+      const focus = scene?.place || player.pos;
+      return {
+        x: focus.x + cam.dx,
+        y: cam.dy,
+        z: focus.z + cam.dz,
+        lx: player.pos.x,
+        ly: 1.35,
+        lz: player.pos.z,
+      };
+    },
     current() { return mission(); },
     knockBoss() {
       if (!boss) return false;
@@ -168,8 +266,20 @@ export function createStory(missions) {
       busted = false;
       boss = null;
       wantedArmed = false;
+      scene = null;
+      introDone = false;
+      outroDone = false;
+      zoneIdle = 0;
+      objectiveText = '';
+      zoneHint = '';
+      document.getElementById('letterbox')?.classList.remove('on');
+      document.body.dataset.scene = '0';
       pin();
-      if (current.voice) hooks.say(current.voice);
+      const staged = sceneFor(current.id);
+      const fast = typeof window !== 'undefined' && window.__cotonouFast;
+      if (!fast && staged?.introAt === 'start') {
+        openScene(staged.intro, null, 'intro');
+      } else if (current.voice) hooks.say(current.voice);
       if (current.kind === 'escape') {
         wantedArmed = true;
         hooks.setWanted(3);
@@ -214,27 +324,53 @@ export function createStory(missions) {
         return;
       }
       pin({ vehicleOk });
+      const staged = sceneFor(current.id);
+      if (!fastPlay() && staged && staged.introAt !== 'start' && !introDone && dist < 11) {
+        openScene(staged.intro, place, 'intro');
+        zoneHint = '';
+        document.body.dataset.zone = '0';
+        return;
+      }
+      if (!introDone && dist < 18 && staged && staged.introAt !== 'start') {
+        zoneIdle = speed < 0.6 ? zoneIdle + dt : 0;
+        zoneHint = zoneIdle > 10 ? 'Tu es au bon endroit. Appuie sur PARLER.' : 'Appuie sur PARLER';
+        document.body.dataset.zone = '1';
+      } else {
+        zoneIdle = 0;
+        if (!scene) zoneHint = '';
+        document.body.dataset.zone = '0';
+      }
       if (current.kind === 'fight' && dist < 14 && !player.vehicle) {
         this.hintText = 'Frappe pour le mettre à terre';
       } else if (dist < 10 && current.vehicle && !vehicleOk) {
         this.hintText = current.vehicle === 'zem' ? 'Monte sur le zemidjan' : 'Monte dans le SUV';
+      } else if (!introDone && dist < 18 && staged) {
+        this.hintText = 'Appuie sur PARLER';
       } else if (dist < 8) {
-        this.hintText = 'Tu es sur l\'objectif';
+        this.hintText = objectiveText || 'Tu es sur l\'objectif';
       } else {
-        this.hintText = '';
+        this.hintText = objectiveText || '';
       }
+      const playOutro = () => {
+        if (!fastPlay() && staged?.outro && !outroDone) {
+          openScene(staged.outro, place, 'outro');
+          return true;
+        }
+        return false;
+      };
       if (current.kind === 'reach' || current.kind === 'convoy' || current.kind === 'escape') {
         if (dist < 8 && (speed < 8 || !player.vehicle) && vehicleOk) {
           if (step < steps.length - 1) {
             step += 1;
+            if (staged?.mid && !fastPlay()) hooks.sayLine(staged.mid);
             hooks.toast('Point de passage atteint. Continue.');
-          } else succeed();
+          } else if (!playOutro()) succeed();
         } else if (dist < 8 && current.vehicle && !vehicleOk && nag <= 0) {
           nag = 4;
           hooks.toast(current.vehicle === 'zem' ? 'Il te faut un zemidjan.' : 'Il te faut le SUV.');
         }
       } else if (current.kind === 'protect') {
-        if (held >= holdNeed) succeed();
+        if (held >= holdNeed && !playOutro()) succeed();
       } else if (current.kind === 'fight') {
         if (!boss) {
           let best = null;
@@ -255,7 +391,7 @@ export function createStory(missions) {
             boss.down = false;
             boss.name = current.bossName;
           }
-        } else if (boss.down || boss.hp <= 0) {
+        } else if ((boss.down || boss.hp <= 0) && !playOutro()) {
           succeed();
         }
       }

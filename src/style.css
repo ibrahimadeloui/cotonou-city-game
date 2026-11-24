@@ -29,6 +29,7 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  z-index: 1;
 }
 
 #vignette, #flash {
@@ -404,6 +405,74 @@ body[data-drive="1"] #speed { font-size: 28px; font-weight: 800; }
 }
 
 #speech.on { opacity: 1; }
+
+#subtitle {
+  position: fixed;
+  z-index: 80;
+  left: calc(12px + env(safe-area-inset-left));
+  bottom: calc(22% + env(safe-area-inset-bottom));
+  width: min(430px, calc(100% - 104px));
+  margin: 0;
+  padding: 14px 16px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(12, 10, 8, 0.92);
+  color: #fff8ee;
+  text-align: left;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+#subtitle.hidden { display: none; }
+#subtitle { pointer-events: auto; }
+body[data-scene="1"] #app,
+body[data-scene="1"] #app canvas,
+body[data-scene="1"] #touch { pointer-events: none; }
+#subtitle strong {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0c14a;
+  margin-bottom: 4px;
+}
+#subtitle span {
+  display: block;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+#subtitle em {
+  display: block;
+  margin-top: 6px;
+  font-style: normal;
+  font-size: 16px;
+  color: #f3e2c4;
+}
+#subtitle small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 248, 238, 0.72);
+}
+#letterbox { pointer-events: none; }
+#letterbox i {
+  position: fixed;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: #07080c;
+  transition: height 280ms ease;
+}
+#letterbox.on i { height: 7vh; }
+#letterbox i:first-child { top: 0; }
+#letterbox i:last-child { bottom: 0; }
+body[data-zone="1"] #prompt {
+  animation: zone-pulse 1.1s ease-in-out infinite;
+}
+@keyframes zone-pulse {
+  50% { transform: scale(1.04); }
+}
 
 #install-hint {
   position: fixed;

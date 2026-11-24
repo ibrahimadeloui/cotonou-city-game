@@ -60,6 +60,36 @@ try {
   await page.waitForFunction(() => document.getElementById('loader')?.classList.contains('hidden'), { timeout: 20000 });
   await page.evaluate(() => { window.__cotonouFast = true; });
   await page.locator('#play').tap();
+  const scenePage = await context.newPage();
+  scenePage.on('pageerror', (err) => errors.push(err.message));
+  await scenePage.goto(URL);
+  await scenePage.evaluate(() => localStorage.clear());
+  await scenePage.reload();
+  await scenePage.waitForFunction(() => document.getElementById('loader')?.classList.contains('hidden'), { timeout: 30000 });
+  await scenePage.locator('#play').tap();
+  await scenePage.waitForFunction(() => !document.getElementById('brief').classList.contains('hidden'));
+  await scenePage.locator('#brief-go').tap();
+  await scenePage.waitForFunction(() => document.getElementById('brief').classList.contains('hidden'));
+  await scenePage.evaluate(() => window.__cotonou.gotoGoal());
+  await scenePage.waitForFunction(() => document.body.dataset.scene === '1', { timeout: 4000 });
+  await scenePage.waitForFunction(() => !document.getElementById('subtitle').classList.contains('hidden'), { timeout: 4000 });
+  const speaker = await scenePage.locator('#sub-name').innerText();
+  const line = await scenePage.locator('#sub-text').innerText();
+  assert(speaker.length > 1, 'sous-titre sans nom');
+  assert(line.length > 8, 'sous-titre vide');
+  await scenePage.evaluate(() => {
+    document.getElementById('subtitle').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+  });
+  await scenePage.waitForFunction(
+    () => document.body.dataset.scene !== '1' && /Objectif/i.test(document.getElementById('mission-body').textContent || ''),
+    { timeout: 4000 },
+  );
+  const objective = await scenePage.locator('#mission-body').innerText();
+  assert(/Objectif/i.test(objective), `objectif absent: ${objective}`);
+  const control = await scenePage.evaluate(() => document.body.dataset.scene !== '1' && !document.getElementById('letterbox').classList.contains('on'));
+  assert(control, 'la scène ne rend pas la main');
+  console.log('scene ok', speaker);
+  await scenePage.close();
   for (let mission = 1; mission <= 8; mission += 1) {
     await page.waitForFunction(() => !document.getElementById('brief').classList.contains('hidden'));
     await page.locator('#brief-go').tap();

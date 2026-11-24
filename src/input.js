@@ -276,7 +276,7 @@ export function createInput() {
   }
 
   function blocked(target) {
-    return Boolean(target?.closest?.('#start, #pause .card, #phone .card, #credits .card, #bust .card, #brief .card, #result .card, #install-hint, #loader, a, input, textarea'));
+    return Boolean(target?.closest?.('#start, #pause .card, #phone .card, #credits .card, #bust .card, #brief .card, #result .card, #subtitle, #install-hint, #loader, a, input, textarea'));
   }
 
   window.addEventListener('pointerdown', (event) => {
