@@ -76,7 +76,11 @@ export function createHuman({ skin, shirt, pants, hair, dress = false, shadows =
   return g;
 }
 
-export function poseHuman(group, phase, mode) {
+export function poseHuman(group, phase, mode, dt = 0.016) {
+  if (group?.userData?.tickAnim) {
+    group.userData.tickAnim(mode, dt);
+    return;
+  }
   const { legL, legR, armL, armR } = group.userData.limbs;
   const body = group.userData.body;
   if (mode === 'sit') {
@@ -219,7 +223,7 @@ export function createIbrahim(shadows, faceUrl) {
 
 export function updatePlayer(player, dt, input, collision, cameraYaw) {
   if (player.vehicle) {
-    poseHuman(player.mesh, 0, 'sit');
+    poseHuman(player.mesh, 0, 'sit', dt);
     return;
   }
 
@@ -270,8 +274,8 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
 
   player.mesh.position.set(player.pos.x, player.pos.y, player.pos.z);
   player.mesh.rotation.set(0, player.yaw, 0);
-  const mode = player.moving ? (run ? 'run' : 'walk') : 'idle';
-  poseHuman(player.mesh, player.phase, mode);
+  const mode = !player.grounded ? 'jump' : player.moving ? (run ? 'run' : 'walk') : 'idle';
+  poseHuman(player.mesh, player.phase, mode, dt);
 }
 
 export function createPedestrians(scene, paths, count, rand, shadows) {
@@ -313,14 +317,49 @@ function placeOnPath(ped) {
   ped.pos.z = a.z + (b.z - a.z) * ped.t;
 }
 
-export function updatePeds(peds, dt, player, paths, onHit) {
+export function updatePeds(peds, dt, player, paths, onHit, camera, quality) {
   const vehicle = player.vehicle;
+  const frame = (peds.frame = (peds.frame || 0) + 1);
+  const density = peds.density ?? 1;
+  const hide = (quality?.crowdHide ?? 110) * (0.62 + 0.38 * density);
+  const cap = Math.max(8, Math.round(peds.length * density));
+  const camx = camera?.position.x ?? 0;
+  const camz = camera?.position.z ?? 0;
+  const ranked = [];
   for (let i = 0; i < peds.length; i += 1) {
     const ped = peds[i];
+    ranked.push({
+      i,
+      dist: camera ? Math.hypot(ped.pos.x - camx, ped.pos.z - camz) : 0,
+    });
+  }
+  if (camera) ranked.sort((a, b) => a.dist - b.dist);
+  const visible = new Set();
+  const fullSet = new Set();
+  const fullCap = Math.max(4, Math.round((quality?.crowdFull ?? 12) * density));
+  for (const item of ranked) {
+    if (camera && item.dist > hide) continue;
+    if (camera && visible.size >= cap && item.dist > 24) continue;
+    visible.add(item.i);
+    if (item.dist < 36 && fullSet.size < fullCap) fullSet.add(item.i);
+  }
+  const distOf = new Array(peds.length);
+  for (const item of ranked) distOf[item.i] = item.dist;
+  for (let i = 0; i < peds.length; i += 1) {
+    const ped = peds[i];
+    const dist = distOf[i];
+    const hidden = Boolean(camera) && !visible.has(i);
+    ped.mesh.visible = !hidden;
     if (ped.down) {
       ped.timer += dt;
-      ped.mesh.rotation.set(-Math.PI / 2, ped.yaw, 0);
-      ped.mesh.position.set(ped.pos.x, 0.32, ped.pos.z);
+      if (!hidden && ped.mesh.userData.tickAnim) {
+        ped.mesh.position.set(ped.pos.x, 0, ped.pos.z);
+        ped.mesh.rotation.set(0, ped.yaw, 0);
+        ped.mesh.userData.tickAnim('death', dt);
+      } else {
+        ped.mesh.rotation.set(-Math.PI / 2, ped.yaw, 0);
+        ped.mesh.position.set(ped.pos.x, 0.32, ped.pos.z);
+      }
       if (ped.timer > 5) {
         ped.down = false;
         ped.timer = 0;
@@ -330,19 +369,25 @@ export function updatePeds(peds, dt, player, paths, onHit) {
       }
       continue;
     }
-    const { a, b } = ped.path;
-    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
-    ped.t += ped.dir * (ped.speed * dt) / len;
-    if (ped.t > 1 || ped.t < 0) {
-      ped.dir *= -1;
-      ped.t = clamp(ped.t, 0, 1);
+    const walking = !ped.behavior || ped.behavior === 'walk';
+    if (walking) {
+      const { a, b } = ped.path;
+      const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      ped.t += ped.dir * (ped.speed * dt) / len;
+      if (ped.t > 1 || ped.t < 0) {
+        ped.dir *= -1;
+        ped.t = clamp(ped.t, 0, 1);
+      }
+      placeOnPath(ped);
+      ped.yaw = Math.atan2((b.x - a.x) * ped.dir, (b.z - a.z) * ped.dir);
     }
-    placeOnPath(ped);
-    ped.yaw = Math.atan2((b.x - a.x) * ped.dir, (b.z - a.z) * ped.dir);
     ped.phase += dt * ped.speed * 2.4;
     ped.mesh.position.set(ped.pos.x, 0, ped.pos.z);
     ped.mesh.rotation.set(0, ped.yaw, 0);
-    poseHuman(ped.mesh, ped.phase, 'walk');
+    if (hidden) continue;
+    const anim = walking ? 'walk' : ped.behavior === 'vendor' ? 'vendor' : 'idle';
+    const step = fullSet.has(i) ? 1 : dist < 68 ? 3 : 5;
+    if (step === 1 || frame % step === i % step) poseHuman(ped.mesh, ped.phase, anim, dt * step);
 
     if (!vehicle) continue;
     const d = Math.hypot(vehicle.pos.x - ped.pos.x, vehicle.pos.z - ped.pos.z);

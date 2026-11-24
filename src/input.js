@@ -25,6 +25,7 @@ export function createInput() {
     play: null,
     resume: null,
     outfit: null,
+    density: null,
   };
 
   const joystick = document.getElementById('joystick');
@@ -118,23 +119,31 @@ export function createInput() {
     return false;
   }
 
-  function placeJoystick(clientX, clientY) {
-    const size = joystick.offsetWidth || 160;
-    const pad = 8;
-    const left = Math.max(pad, Math.min(window.innerWidth - size - pad, clientX - size / 2));
-    const top = Math.max(pad, Math.min(window.innerHeight - size - pad, clientY - size / 2));
-    joystick.style.left = `${left}px`;
-    joystick.style.top = `${top}px`;
-    joystick.style.bottom = 'auto';
+  function joystickCenter(clientX, clientY, fromPad) {
+    const size = joystick.offsetWidth || 158;
+    if (fromPad) {
+      const pad = 8;
+      const left = Math.max(pad, Math.min(window.innerWidth - size - pad, clientX - size / 2));
+      const top = Math.max(pad, Math.min(window.innerHeight - size - pad, clientY - size / 2));
+      joystick.style.left = `${left}px`;
+      joystick.style.top = `${top}px`;
+      joystick.style.bottom = 'auto';
+      return { cx: left + size / 2, cy: top + size / 2, max: size * 0.38 };
+    }
+    const rect = joystick.getBoundingClientRect();
+    return {
+      cx: rect.left + rect.width / 2,
+      cy: rect.top + rect.height / 2,
+      max: rect.width * 0.38,
+    };
   }
 
   function updateJoy(pointer) {
-    const rect = joystick.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = pointer.x - cx;
-    const dy = pointer.y - cy;
-    const max = rect.width * 0.38;
+    // clientY grows downward. Up on the stick must be positive forward,
+    // and forward is the direction the camera looks (away from the camera).
+    const dx = pointer.x - pointer.cx;
+    const dy = pointer.y - pointer.cy;
+    const max = pointer.max || 60;
     const mag = Math.hypot(dx, dy) || 1;
     const clamped = Math.min(mag, max);
     const nx = (dx / mag) * (clamped / max);
@@ -185,6 +194,7 @@ export function createInput() {
     if (target.closest('#joy-pad')) return 'joy-pad';
     if (target.closest('#avatar')) return 'selfie';
     if (target.closest('#btn-outfit')) return 'outfit';
+    if (target.closest('#btn-density')) return 'density';
     return null;
   }
 
@@ -205,8 +215,18 @@ export function createInput() {
     event.preventDefault();
     const button = event.target.closest?.('button') || null;
     if (button) button.classList.add('held');
-    if (kind === 'joy-pad') placeJoystick(event.clientX, event.clientY);
-    const record = { kind: kind === 'joy-pad' ? 'joy' : kind, x: event.clientX, y: event.clientY, button };
+    const origin = (kind === 'joy' || kind === 'joy-pad')
+      ? joystickCenter(event.clientX, event.clientY, kind === 'joy-pad')
+      : null;
+    const record = {
+      kind: kind === 'joy-pad' ? 'joy' : kind,
+      x: event.clientX,
+      y: event.clientY,
+      cx: origin?.cx,
+      cy: origin?.cy,
+      max: origin?.max,
+      button,
+    };
     pointers.set(event.pointerId, record);
     if (record.kind === 'joy') updateJoy(record);
     if (kind === 'run') syncRun();
@@ -217,6 +237,7 @@ export function createInput() {
     if (kind === 'resume') actions.resume?.();
     if (kind === 'selfie') selfieQueued = true;
     if (kind === 'outfit') outfitQueued = true;
+    if (kind === 'density') actions.density?.();
   }, { passive: false });
 
   window.addEventListener('pointermove', (event) => {
@@ -244,7 +265,7 @@ export function createInput() {
 
   window.addEventListener('contextmenu', (event) => event.preventDefault());
 
-  for (const button of [...Object.values(buttons), playBtn, resumeBtn, document.getElementById('btn-outfit')]) {
+  for (const button of [...Object.values(buttons), playBtn, resumeBtn, document.getElementById('btn-outfit'), document.getElementById('btn-density')]) {
     button.addEventListener('keydown', (event) => event.preventDefault());
   }
 
@@ -253,6 +274,7 @@ export function createInput() {
       actions.play = next.play;
       actions.resume = next.resume;
       actions.outfit = next.outfit || null;
+      actions.density = next.density || null;
     },
     sample() {
       const forward = (has(['KeyW', 'ArrowUp'], ['w', 'z', 'arrowup']) ? 1 : 0)

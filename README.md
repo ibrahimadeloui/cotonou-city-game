@@ -4,6 +4,8 @@ Jeu de ville ouverte dans le navigateur, au bord de l'Atlantique à Cotonou. Tu 
 
 Le rendu est en 3D vue troisième personne (Three.js). La ville est générée dans le code : boulevard de la Marina, Route des Pêches, marché Dantokpa, Grande Mosquée, stade, port, plage de Fidjrossè, palmiers, trafic et passants. La lumière suit un cycle jour / nuit qui s'attarde sur l'heure dorée.
 
+Ibrahim et les passants utilisent le modèle **Quaternius — Animated Human** (CC0). Le visage d'Ibrahim est sa photo, projetée sur la tête. Les passants proches sont animés (marche, discussion, vendeurs) ; au loin, des silhouettes instanciées prennent le relais. Le menu pause propose **Foule dense**, **Foule moyenne** et **Foule légère** pour les téléphones.
+
 ## Lancer en local
 
 Il faut Node.js 20 ou plus récent.
@@ -54,6 +56,7 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 | Klaxon | H |
 | Selfie | C, ou le portrait en haut à gauche |
 | Changer de tenue | V, ou Tenue wax dans le menu pause |
+| Densité des passants | Foule dense / moyenne / légère, dans le menu pause |
 | Caméra | Glisser la souris |
 | Pause | Échap ou P |
 

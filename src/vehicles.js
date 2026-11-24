@@ -364,9 +364,29 @@ function laneFor(from, to) {
 
 function drivePlayer(vehicle, dt, input, collision, onCrash) {
   const spec = SPECS[vehicle.type];
-  const throttle = input.forward;
-  const steer = input.right;
   const handbrake = input.handbrake;
+  let throttle = input.forward;
+  let steer = input.right;
+  if (Number.isFinite(input.cameraYaw) && !handbrake) {
+    const yaw = input.cameraYaw;
+    const wishX = Math.sin(yaw) * input.forward + Math.cos(yaw) * input.right;
+    const wishZ = Math.cos(yaw) * input.forward - Math.sin(yaw) * input.right;
+    const mag = Math.min(1, Math.hypot(wishX, wishZ));
+    throttle = 0;
+    steer = 0;
+    if (mag > 0.05) {
+      let desired = Math.atan2(wishX, wishZ);
+      let diff = Math.atan2(Math.sin(desired - vehicle.yaw), Math.cos(desired - vehicle.yaw));
+      if (Math.abs(diff) > Math.PI * 0.55) {
+        desired += Math.PI;
+        diff = Math.atan2(Math.sin(desired - vehicle.yaw), Math.cos(desired - vehicle.yaw));
+        throttle = -mag;
+      } else {
+        throttle = mag;
+      }
+      steer = clamp(diff / 0.65, -1, 1);
+    }
+  }
   let { speed } = vehicle;
   if (handbrake) {
     speed = damp(speed, 0, 3.4, dt);

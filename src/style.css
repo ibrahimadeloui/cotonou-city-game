@@ -403,9 +403,9 @@ button.primary, #resume {
   -webkit-tap-highlight-color: transparent;
 }
 
-button.primary.held, #resume.held, #btn-outfit.held { filter: brightness(1.08); transform: scale(0.98); }
+button.primary.held, #resume.held, #btn-outfit.held, #btn-density.held { filter: brightness(1.08); transform: scale(0.98); }
 
-#btn-outfit {
+#btn-outfit, #btn-density {
   margin-top: 12px;
   margin-right: 8px;
   width: auto;
