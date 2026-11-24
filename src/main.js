@@ -1,5 +1,6 @@
 import './style.css';
 import {
+  ACESFilmicToneMapping,
   PCFSoftShadowMap,
   PerspectiveCamera,
   Scene,
@@ -53,6 +54,8 @@ const renderer = new WebGLRenderer({
   stencil: false,
 });
 renderer.outputColorSpace = SRGBColorSpace;
+renderer.toneMapping = ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
 renderer.setPixelRatio(quality.pixelRatio);
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = PCFSoftShadowMap;
@@ -60,6 +63,21 @@ renderer.domElement.style.touchAction = 'none';
 document.getElementById('app').appendChild(renderer.domElement);
 
 const lighting = createLighting(scene, refs, quality);
+
+function loadBrightness() {
+  const saved = Number(localStorage.getItem('cotonou-brightness'));
+  return Number.isFinite(saved) && saved >= 0.65 && saved <= 1.8 ? saved : 1.25;
+}
+
+function applyBrightness(value) {
+  const next = Math.min(1.8, Math.max(0.65, Number(value) || 1.25));
+  renderer.toneMappingExposure = next;
+  refs.brightness = next;
+  localStorage.setItem('cotonou-brightness', String(next));
+  return next;
+}
+
+applyBrightness(loadBrightness());
 const city = createCity(scene, refs, quality);
 const traffic = createTraffic(scene, city.graph, quality, Math.random);
 async function startGame() {
@@ -82,6 +100,11 @@ const player = {
   speed: 0,
   hp: 100,
   hpMax: 100,
+  attackT: 0,
+  dodgeT: 0,
+  invuln: 0,
+  punches: 0,
+  dodges: 0,
 };
 ibrahim.position.set(player.pos.x, 0, player.pos.z);
 ibrahim.rotation.y = player.yaw;
@@ -111,23 +134,27 @@ input.setActions({
     rig.state.yaw = player.yaw;
     rig.snap();
     if (!story.done()) story.openBrief();
+    note('play');
   },
   resume() {
     paused = false;
     document.getElementById('pause').classList.add('hidden');
     document.getElementById('resume').blur();
+    note('resume');
   },
   outfit() {
     waxOutfit = !waxOutfit;
     ibrahim.userData.setOutfit(waxOutfit);
     const button = document.getElementById('btn-outfit');
     if (button) button.textContent = waxOutfit ? 'Tenue wax' : 'Tenue ville';
+    note('outfit');
   },
   density() {
     densityIndex = (densityIndex + 1) % DENSITIES.length;
     peds.density = DENSITIES[densityIndex].value;
     const button = document.getElementById('btn-density');
     if (button) button.textContent = DENSITIES[densityIndex].label;
+    note('density');
   },
 });
 const audio = createAudio();
@@ -142,14 +169,14 @@ const game = {
   player,
   missions,
   vehicles: traffic.list,
-  hour: hourFromCycle(0.08),
+  hour: hourFromCycle(0.2),
   nearVehicle: null,
   toast: '',
   toastUntil: 0,
   radio: RADIO[0],
 };
 
-let cycle = 0.08;
+let cycle = 0.2;
 let started = false;
 let paused = false;
 let busting = false;
@@ -178,7 +205,16 @@ window.addEventListener('resize', resize);
 window.visualViewport?.addEventListener('resize', resize);
 
 if (story.save) missions.state.jobs = story.save.jobs;
-document.getElementById('brief-go')?.addEventListener('click', () => story.begin());
+document.getElementById('brief-go')?.addEventListener('click', () => {
+  story.begin();
+  note('brief');
+});
+document.getElementById('brightness')?.addEventListener('input', (event) => {
+  applyBrightness(event.target.value);
+  note('brightness');
+});
+const brightnessInput = document.getElementById('brightness');
+if (brightnessInput) brightnessInput.value = String(renderer.toneMappingExposure);
 setupPwa(toast);
 
 function toast(text) {
@@ -314,12 +350,89 @@ function cinematic(dt) {
   camera.lookAt(SPAWN.x, 1.48, SPAWN.z);
 }
 
+const actionLog = [];
+function note(name) {
+  actionLog.push(name);
+  if (actionLog.length > 60) actionLog.shift();
+}
 window.__cotonou = {
   get x() { return player.pos.x; },
   get z() { return player.pos.z; },
   get vehicle() { return Boolean(player.vehicle); },
   get paused() { return paused; },
   get started() { return started; },
+  get punches() { return player.punches || 0; },
+  get dodges() { return player.dodges || 0; },
+  get hp() { return player.hp; },
+  get exposure() { return renderer.toneMappingExposure; },
+  get actions() { return actionLog.slice(); },
+  get runHeld() { return input.held().run; },
+  nearest() {
+    let best = null;
+    let bestD = Infinity;
+    for (const ped of peds) {
+      if (ped.down) continue;
+      const dist = Math.hypot(ped.pos.x - player.pos.x, ped.pos.z - player.pos.z);
+      if (dist < bestD) {
+        best = ped;
+        bestD = dist;
+      }
+    }
+    if (!best) return null;
+    return { hp: best.hp, x: best.pos.x, z: best.pos.z, d: bestD };
+  },
+  focusNearest() {
+    const near = this.nearest();
+    if (!near) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const ped of peds) {
+      const dist = Math.hypot(ped.pos.x - near.x, ped.pos.z - near.z);
+      if (dist < bestD) {
+        best = ped;
+        bestD = dist;
+      }
+    }
+    best.behavior = 'idle';
+    best.speed = 0;
+    best.down = false;
+    best.temper = 'calm';
+    if (!Number.isFinite(best.hp)) best.hp = best.hpMax || 28;
+    const fx = Math.sin(rig.state.yaw);
+    const fz = Math.cos(rig.state.yaw);
+    best.pos.x = player.pos.x + fx * 1.15;
+    best.pos.z = player.pos.z + fz * 1.15;
+    best.mesh.position.set(best.pos.x, 0, best.pos.z);
+    best.mesh.visible = true;
+    player.yaw = rig.state.yaw;
+    player.mesh.rotation.y = player.yaw;
+    player.focusPed = best;
+    return best.hp;
+  },
+  focusHp() {
+    return player.focusPed ? player.focusPed.hp : null;
+  },
+  focusState() {
+    const ped = player.focusPed;
+    if (!ped) return null;
+    return {
+      hp: ped.hp,
+      dx: ped.pos.x - player.pos.x,
+      dz: ped.pos.z - player.pos.z,
+      yaw: player.yaw,
+      down: ped.down,
+      visible: ped.mesh.visible,
+      punches: player.punches || 0,
+    };
+  },
+  stand(x, z, yaw) {
+    player.pos.x = x;
+    player.pos.z = z;
+    player.pos.y = 0;
+    player.yaw = yaw;
+    player.mesh.position.set(x, 0, z);
+    player.mesh.rotation.y = yaw;
+  },
 };
 
 function frame(now) {
@@ -352,10 +465,12 @@ function frame(now) {
   if (edges.selfie) {
     selfieUntil = performance.now() + 4800;
     toast('Selfie.');
+    note('selfie');
   }
   if (edges.pause && !busting) {
     paused = !paused;
     document.getElementById('pause').classList.toggle('hidden', !paused);
+    note('pause');
   }
   if (paused || story.holding()) {
     renderer.render(scene, camera);
@@ -377,17 +492,26 @@ function frame(now) {
   game.hour = hourFromCycle(cycle);
   rig.addLook(look.x, look.y);
 
+  if (edges.jump && !player.vehicle) note('jump');
+  if (edges.punch) note('punch');
+  if (edges.dodge) note('dodge');
   if (edges.enter) {
     selfieUntil = 0;
-    if (player.vehicle) traffic.exit(player, city.collision);
-    else {
+    if (player.vehicle) {
+      traffic.exit(player, city.collision);
+      note('exit');
+    } else {
       const near = traffic.nearestEnterable(player.pos);
-      if (near) traffic.enter(player, near);
+      if (near) {
+        traffic.enter(player, near);
+        note('enter');
+      }
     }
   }
-  if (edges.horn && player.vehicle) {
-    horn(player.vehicle);
+  if (edges.horn) {
     audio.horn();
+    if (player.vehicle) horn(player.vehicle);
+    note('horn');
   }
 
   beginCombat(player, {

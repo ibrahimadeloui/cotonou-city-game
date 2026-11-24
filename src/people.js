@@ -250,7 +250,8 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
     player.moving = false;
     player.speed = 0;
     player.idle = (player.idle || 0) + dt;
-    if (player.idle > 1.1) player.yaw = dampAngle(player.yaw, cameraYaw + Math.PI, 5.5, dt);
+    const swinging = (player.attackT || 0) > 0 || (player.dodgeT || 0) > 0;
+    if (!swinging && player.idle > 1.1) player.yaw = dampAngle(player.yaw, cameraYaw + Math.PI, 5.5, dt);
   }
 
   if (player.grounded && input.jump) player.vy = 5.4;

@@ -6,23 +6,34 @@ const HOSPITAL = { x: -45, z: 88 };
 export function beginCombat(player, input, cameraYaw, dt) {
   player.hp = player.hp ?? 100;
   player.hpMax = 100;
+  // undefined <= 0 vaut false : sans cette init, le premier coup ne part jamais.
+  player.attackT = Number.isFinite(player.attackT) ? player.attackT : 0;
+  player.dodgeT = Number.isFinite(player.dodgeT) ? player.dodgeT : 0;
+  player.invuln = Number.isFinite(player.invuln) ? player.invuln : 0;
   if (player.invuln > 0) player.invuln -= dt;
   if (player.dodgeT > 0) player.dodgeT -= dt;
   if (player.attackT > 0) player.attackT -= dt;
   if (player.vehicle) return;
-  if (input.dodge && player.dodgeT <= 0 && player.attackT <= 0) {
+  if (input.dodge && player.dodgeT <= 0) {
+    player.attackT = 0;
     player.dodgeT = 0.34;
     player.invuln = 0.42;
     const basis = cameraPlanarBasis(cameraYaw);
     const side = input.right < -0.2 ? -1 : 1;
     player.pos.x += basis.rightX * 1.7 * side;
     player.pos.z += basis.rightZ * 1.7 * side;
+    player.dodges = (player.dodges || 0) + 1;
+    if (navigator.vibrate) navigator.vibrate(10);
   }
-  if (input.punch && player.attackT <= 0) {
+  if (input.punch && player.attackT <= 0 && player.dodgeT <= 0) {
+    player.yaw = cameraYaw;
+    player.idle = 0;
     player.combo = ((player.combo || 0) + 1) % 2;
     player.attackKind = player.combo === 1 ? 'punch' : 'kick';
     player.attackT = player.attackKind === 'punch' ? 0.48 : 0.4;
     player.attackHit = true;
+    player.punches = (player.punches || 0) + 1;
+    if (navigator.vibrate) navigator.vibrate(15);
   }
 }
 
@@ -35,10 +46,11 @@ export function resolveCombat(dt, player, peds, hooks) {
     let hit = null;
     let best = reach;
     for (const ped of peds) {
-      if (ped.down || !ped.mesh.visible) continue;
+      if (ped.down) continue;
       const dx = ped.pos.x - player.pos.x;
       const dz = ped.pos.z - player.pos.z;
       const dist = Math.hypot(dx, dz);
+      if (!ped.mesh.visible && dist > 2.2) continue;
       if (dist > best) continue;
       const dot = (dx * faceX + dz * faceZ) / (dist || 1);
       if (dot < 0.2) continue;
