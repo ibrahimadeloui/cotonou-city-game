@@ -20,6 +20,13 @@ export function createInput() {
   let outfitQueued = false;
   let punchQueued = false;
   let dodgeQueued = false;
+  let camQueued = false;
+  let gasHeld = false;
+  let brakeHeld = false;
+  let handHeld = false;
+  let nitroHeld = false;
+  let steerLeft = false;
+  let steerRight = false;
   let lookDx = 0;
   let lookDy = 0;
 
@@ -28,6 +35,7 @@ export function createInput() {
     resume: null,
     outfit: null,
     density: null,
+    steer: null,
   };
 
   const joystick = document.getElementById('joystick');
@@ -172,6 +180,16 @@ export function createInput() {
     runHeld = [...pointers.values()].some((pointer) => pointer.kind === 'run');
   }
 
+  function syncDrive() {
+    const kinds = [...pointers.values()].map((pointer) => pointer.kind);
+    gasHeld = kinds.includes('gas');
+    brakeHeld = kinds.includes('brake');
+    handHeld = kinds.includes('hand');
+    nitroHeld = kinds.includes('nitro');
+    steerLeft = kinds.includes('steerL');
+    steerRight = kinds.includes('steerR');
+  }
+
   function releasePointer(id) {
     const pointer = pointers.get(id);
     if (!pointer) return;
@@ -187,6 +205,7 @@ export function createInput() {
       /* le delta déjà accumulé sera lu par consumeLook */
     }
     syncRun();
+    syncDrive();
   }
 
   function kindOf(target) {
@@ -204,6 +223,16 @@ export function createInput() {
     if (target.closest('#btn-density')) return 'density';
     if (target.closest('#btn-punch')) return 'punch';
     if (target.closest('#btn-dodge')) return 'dodge';
+    if (target.closest('#btn-gas')) return 'gas';
+    if (target.closest('#btn-brake')) return 'brake';
+    if (target.closest('#btn-handbrake')) return 'hand';
+    if (target.closest('#btn-nitro')) return 'nitro';
+    if (target.closest('#btn-horn-drive')) return 'horn';
+    if (target.closest('#btn-cam')) return 'cam';
+    if (target.closest('#btn-exit')) return 'vehicle';
+    if (target.closest('#btn-steer-left')) return 'steerL';
+    if (target.closest('#btn-steer-right')) return 'steerR';
+    if (target.closest('#btn-steer-mode')) return 'steer-mode';
     return null;
   }
 
@@ -252,6 +281,9 @@ export function createInput() {
     if (kind === 'density') actions.density?.();
     if (kind === 'punch') punchQueued = true;
     if (kind === 'dodge') dodgeQueued = true;
+    if (kind === 'cam') camQueued = true;
+    if (kind === 'steer-mode') actions.steer?.();
+    syncDrive();
   }, { passive: false });
 
   window.addEventListener('pointermove', (event) => {
@@ -288,6 +320,7 @@ export function createInput() {
       actions.resume = next.resume;
       actions.outfit = next.outfit || null;
       actions.density = next.density || null;
+      actions.steer = next.steer || null;
     },
     sample() {
       const forward = (has(['KeyW', 'ArrowUp'], ['w', 'z', 'arrowup']) ? 1 : 0)
@@ -305,10 +338,20 @@ export function createInput() {
       return {
         forward: fx,
         right: rx,
+        keyForward: forward,
+        keyRight: right,
+        joyX,
+        joyY,
         run: shift || runHeld,
         analog,
         space: downCodes.has('Space') || downKeys.has(' '),
         runHeld,
+        gas: gasHeld,
+        brake: brakeHeld,
+        hand: handHeld,
+        nitro: nitroHeld,
+        steerLeft,
+        steerRight,
       };
     },
     consume() {
@@ -321,6 +364,7 @@ export function createInput() {
         outfit: outfitQueued,
         punch: punchQueued,
         dodge: dodgeQueued,
+        cam: camQueued,
       };
       enterQueued = false;
       hornQueued = false;
@@ -330,6 +374,7 @@ export function createInput() {
       outfitQueued = false;
       punchQueued = false;
       dodgeQueued = false;
+      camQueued = false;
       return edges;
     },
     consumeLook() {

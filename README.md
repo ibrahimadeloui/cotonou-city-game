@@ -74,7 +74,7 @@ Les touches **ZQSD**, **WASD** et les flèches marchent ensemble, sur clavier AZ
 
 ### Téléphone
 
-Un joystick s'affiche en bas à gauche, les boutons **Frapper**, **Esquive**, **Courir / Frein**, **Monter / Sortir**, **Klaxon** et **Pause** en bas à droite. Ils marchent en même temps que le joystick. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir. Un appui sur Courir fait aussi sauter. Haut éloigne de la caméra, bas s'en rapproche, droite et gauche suivent l'écran (comme D et A). En voiture, droite fait tourner à droite. La pause a un curseur **Luminosité**, gardé sur l'appareil.
+Un joystick s'affiche en bas à gauche, les boutons **Frapper**, **Esquive**, **Courir**, **Monter**, **Klaxon** et **Pause** en bas à droite. En voiture ou en zemidjan, ils laissent place aux pédales **Accélérer** et **Frein**, au frein à main, à la nitro, au klaxon et à **Sortir**. La pause choisit la direction au joystick ou avec deux boutons. Des chevrons jaunes défilent sur la route vers l'objectif. Ils marchent en même temps que le joystick. Glisser ailleurs sur l'écran tourne la caméra. Pousser le joystick à fond fait courir. Un appui sur Courir fait aussi sauter. Haut éloigne de la caméra, bas s'en rapproche, droite et gauche suivent l'écran (comme D et A). En voiture, droite fait tourner à droite. La pause a un curseur **Luminosité**, gardé sur l'appareil.
 
 ## Comment jouer
 

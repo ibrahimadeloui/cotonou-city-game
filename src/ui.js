@@ -60,6 +60,8 @@ export function createUi() {
       wantedEl.classList.toggle('blink', Boolean(game.escaping));
 
       const vehicle = game.player.vehicle;
+      document.body.dataset.drive = vehicle ? '1' : '0';
+      document.body.dataset.steer = game.steerMode || 'stick';
       if (vehicle) {
         setText('speed', `${Math.round(Math.abs(vehicle.speed) * 3.6)} km/h`);
         setText('prompt', 'E  —  Descendre');

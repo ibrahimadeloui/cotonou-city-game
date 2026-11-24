@@ -72,6 +72,7 @@ async function exercise(page, label) {
   await page.waitForFunction(() => document.getElementById('brief').classList.contains('hidden'));
   await page.waitForFunction(() => !/disponible/i.test(document.getElementById('mission-kicker').textContent));
   assert((await actions(page)).includes('brief'), `${label}: C'est parti`);
+  await page.waitForFunction(() => window.__cotonou.chevrons() > 2, { timeout: 4000 });
 
   const dismiss = page.locator('#install-dismiss');
   if (await dismiss.isVisible()) await dismiss.tap();
@@ -108,7 +109,8 @@ async function exercise(page, label) {
   await tap(page, '#btn-vehicle');
   await page.waitForFunction(() => window.__cotonou.vehicle, { timeout: 4000 });
   assert((await actions(page)).includes('enter'), `${label}: Monter`);
-  await tap(page, '#btn-vehicle');
+  assert(await page.locator('#btn-gas').isVisible(), `${label}: pédale en voiture`);
+  await tap(page, '#btn-exit');
   await page.waitForFunction(() => !window.__cotonou.vehicle);
   assert((await actions(page)).includes('exit'), `${label}: Sortir`);
 
@@ -163,9 +165,47 @@ async function exercise(page, label) {
   await page.waitForFunction(() => Math.abs(window.__cotonou.exposure - 1.6) < 0.02);
   const stored = await page.evaluate(() => localStorage.getItem('cotonou-brightness'));
   assert(Math.abs(Number(stored) - 1.6) < 0.02, `${label}: luminosité non sauvée`);
+  const steerLabel = await page.locator('#btn-steer-mode').innerText();
+  await tap(page, '#btn-steer-mode');
+  await page.waitForFunction((previous) => document.getElementById('btn-steer-mode').textContent !== previous, steerLabel);
   await tap(page, '#resume');
   await page.waitForFunction(() => document.getElementById('pause').classList.contains('hidden'));
   assert((await actions(page)).includes('resume'), `${label}: Reprendre`);
+
+  await driveLayout(page, label, 'suv');
+  await driveLayout(page, label, 'zem');
+}
+
+async function driveLayout(page, label, type) {
+  const entered = await page.evaluate((kind) => window.__cotonou.enterType(kind), type);
+  assert(entered, `${label}: monter ${type}`);
+  await page.waitForFunction(() => document.body.dataset.drive === '1');
+  assert(await page.locator('#btn-punch').isHidden(), `${label}: Frapper reste visible en ${type}`);
+  assert(await page.locator('#btn-gas').isVisible(), `${label}: accélérateur ${type}`);
+  assert(await page.locator('#btn-brake').isVisible(), `${label}: frein ${type}`);
+  assert(await page.locator('#btn-exit').isVisible(), `${label}: sortir ${type}`);
+  await page.evaluate((mode) => window.__cotonou.setSteer(mode), type === 'zem' ? 'buttons' : 'stick');
+  await page.waitForFunction((mode) => document.body.dataset.steer === mode, type === 'zem' ? 'buttons' : 'stick');
+  const gas = await page.locator('#btn-gas').boundingBox();
+  const steer = await page.locator(type === 'zem' ? '#btn-steer-right' : '#joystick').boundingBox();
+  assert(gas && steer, `${label}: pédale ou direction ${type}`);
+  const client = await page.context().newCDPSession(page);
+  const steerX = type === 'zem' ? steer.x + steer.width / 2 : steer.x + steer.width / 2 + 50;
+  const steerY = steer.y + steer.height / 2;
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { x: gas.x + gas.width / 2, y: gas.y + gas.height / 2, id: 1 },
+      { x: steerX, y: steerY, id: 2 },
+    ],
+  });
+  await page.waitForTimeout(650);
+  await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const speed = await page.evaluate(() => window.__cotonou.speedKmh());
+  assert(speed > 6, `${label}: ${type} n'accélère pas (${speed.toFixed(1)} km/h)`);
+  await page.locator('#btn-exit').tap();
+  await page.waitForFunction(() => document.body.dataset.drive !== '1');
+  assert(await page.locator('#btn-punch').isVisible(), `${label}: Frapper ne revient pas`);
 }
 
 const server = startServer();

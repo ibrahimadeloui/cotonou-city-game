@@ -405,9 +405,10 @@ function drivePlayer(vehicle, dt, input, collision, onCrash) {
     const sign = speed >= -0.15 ? 1 : -1;
     const boost = clamp(Math.abs(speed) / 4.5, 0.25, 1);
     vehicle.yaw += steer * spec.turn * boost * sign * dt;
-    const target = throttle > 0.05 ? spec.max * throttle : throttle < -0.05 ? -spec.reverse * -throttle : 0;
-    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 7 : 5.4) : (vehicle.type === 'zem' ? 3.2 : 2.4);
-    speed = damp(speed, target, response, dt);
+    let target = throttle > 0.05 ? spec.max * throttle : throttle < -0.05 ? -spec.reverse * -throttle : 0;
+    if (input.nitro && target > 0) target *= vehicle.type === 'zem' ? 1.35 : 1.45;
+    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 8.5 : 5.4) : (vehicle.type === 'zem' ? 3.6 : 2.4);
+    speed = damp(speed, target, response * (input.nitro ? 1.35 : 1), dt);
   }
   vehicle.steerVisual = steer;
   const before = speed;
@@ -532,7 +533,8 @@ let sirenTime = 0;
 
 function syncVisual(vehicle, dt, nightHead) {
   vehicle.mesh.position.set(vehicle.pos.x, 0, vehicle.pos.z);
-  vehicle.mesh.rotation.set(0, vehicle.yaw, vehicle.type === 'zem' ? -vehicle.steerVisual * clamp(Math.abs(vehicle.speed) / 12, 0, 1) * 0.18 : 0);
+  const lean = vehicle.type === 'zem' ? -vehicle.steerVisual * clamp(Math.abs(vehicle.speed) / 9, 0, 1) * 0.46 : 0;
+  vehicle.mesh.rotation.set(lean * 0.15, vehicle.yaw, lean);
   const spin = vehicle.speed * dt * (vehicle.type === 'zem' ? 4.2 : 2.6);
   for (const wheel of vehicle.wheels) {
     wheel.mesh.rotation.x += spin;
