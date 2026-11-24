@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { cameraPlanarBasis } from './camera-basis.js';
+import { turnToward } from './utils.js';
 
 function crossForwardUp(basis) {
   return { x: -basis.forwardZ, z: basis.forwardX };
@@ -41,5 +42,19 @@ const basis = cameraPlanarBasis(facing);
 assert.ok(steerToward(facing, basis.rightX, basis.rightZ) < 0, 'stick right steers toward screen-right');
 assert.ok(steerToward(facing, -basis.rightX, -basis.rightZ) > 0, 'stick left steers toward screen-left');
 assert.ok(Math.abs(steerToward(facing, basis.forwardX, basis.forwardZ)) < 0.05, 'stick up does not steer');
+
+let yaw = 0;
+let peak = 0;
+let first = 0;
+for (let i = 0; i < 30; i += 1) {
+  const next = turnToward(yaw, Math.PI - 0.01, 8.5, 1 / 60);
+  const step = Math.abs(Math.atan2(Math.sin(next - yaw), Math.cos(next - yaw)));
+  if (i === 0) first = step;
+  peak = Math.max(peak, step);
+  yaw = next;
+}
+assert.ok(peak <= 8.5 / 60 + 1e-6, 'la rotation dépasse le plafond');
+assert.ok(first < 0.2, 'un demi-tour se fait en une frame');
+assert.ok(yaw > 2, 'la rotation n’avance pas');
 
 console.log('camera basis ok');

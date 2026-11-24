@@ -20,7 +20,7 @@ export function createCameraRig(camera) {
     cycleCam() {
       state.camExtra = state.camExtra === 0 ? -2.2 : state.camExtra < 0 ? 3.4 : 0;
     },
-    update(dt, target, faceYaw, moving, modeDist, collision, selfie) {
+    update(dt, target, faceYaw, moving, modeDist, collision, selfie, recenter) {
       state.drag -= dt;
       if (selfie && !state.wasSelfie) state.savedPitch = state.pitch;
       if (!selfie && state.wasSelfie && state.savedPitch != null) state.pitch = state.savedPitch;
@@ -29,7 +29,7 @@ export function createCameraRig(camera) {
         state.yaw = dampAngle(state.yaw, faceYaw + Math.PI, 14, dt);
         state.pitch = damp(state.pitch, 0.16, 12, dt);
       } else if (state.drag <= 0 && moving) {
-        state.yaw = faceYaw;
+        state.yaw = dampAngle(state.yaw, faceYaw, recenter || 2.5, dt);
       }
       state.dist = Math.max(4.2, (selfie ? 2.35 : modeDist) + (state.camExtra || 0));
       const dist = state.dist;
@@ -50,7 +50,8 @@ export function createCameraRig(camera) {
         camera.position.copy(desired);
         state.snap = false;
       } else {
-        camera.position.copy(desired);
+        const follow = 1 - Math.exp(-14 * dt);
+        camera.position.lerp(desired, follow);
       }
       camera.lookAt(look);
     },

@@ -12,7 +12,7 @@ import {
 } from 'three';
 import { cameraPlanarBasis } from './camera-basis.js';
 import { RUN_SPEED, WALK_SPEED } from './config.js';
-import { clamp, clampWorld, dampAngle, resolveCircle } from './utils.js';
+import { clamp, clampWorld, damp, resolveCircle, turnToward } from './utils.js';
 
 const materials = new Map();
 
@@ -224,6 +224,7 @@ export function createIbrahim(shadows, faceUrl) {
 
 export function updatePlayer(player, dt, input, collision, cameraYaw) {
   if (player.vehicle) {
+    player.speed = 0;
     poseHuman(player.mesh, 0, 'sit', dt);
     return;
   }
@@ -231,28 +232,45 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
   const { forwardX, forwardZ, rightX, rightZ } = cameraPlanarBasis(cameraYaw);
   let mx = forwardX * input.forward + rightX * input.right;
   let mz = forwardZ * input.forward + rightZ * input.right;
-  const mag = Math.hypot(mx, mz);
-  const run = input.run || (input.analog && mag > 0.9);
-  if (mag > 0.08) {
+  const mag = Math.min(1, Math.hypot(mx, mz));
+  if (mag > 0.001) {
     mx /= mag;
     mz /= mag;
-    const speed = run ? RUN_SPEED : WALK_SPEED;
-    const water = player.pos.z < 16 ? 0.55 : 1;
+  }
+  let speedTarget = 0;
+  if (mag > 0.04) {
+    if (input.analog) {
+      const floor = input.run ? WALK_SPEED * 0.85 : WALK_SPEED * 0.38;
+      speedTarget = floor + (RUN_SPEED - floor) * mag;
+    } else {
+      speedTarget = input.run ? RUN_SPEED : WALK_SPEED;
+    }
+  }
+  const rate = speedTarget >= (player.speed || 0) ? 6.2 : 9.5;
+  player.speed = damp(player.speed || 0, speedTarget, rate, dt);
+  if (player.speed < 0.04) player.speed = 0;
+
+  const yawBefore = player.yaw;
+  if (mag > 0.04) {
     player.idle = 0;
-    player.yaw = dampAngle(player.yaw, Math.atan2(mx, mz), 22, dt);
-    const swing = (player.attackT || 0) > 0 ? 0.25 : 1;
-    player.pos.x += mx * speed * water * swing * dt;
-    player.pos.z += mz * speed * water * swing * dt;
-    player.moving = true;
-    player.speed = speed * water;
-    player.phase += dt * speed * (run ? 2.6 : 2.15);
+    player.yaw = turnToward(player.yaw, Math.atan2(mx, mz), 8.5, dt);
   } else {
-    player.moving = false;
-    player.speed = 0;
     player.idle = (player.idle || 0) + dt;
     const swinging = (player.attackT || 0) > 0 || (player.dodgeT || 0) > 0;
-    if (!swinging && player.idle > 1.1) player.yaw = dampAngle(player.yaw, cameraYaw + Math.PI, 5.5, dt);
+    if (!swinging && player.idle > 1.1) {
+      player.yaw = turnToward(player.yaw, cameraYaw + Math.PI, 2.2, dt);
+    }
   }
+  const yawStep = Math.abs(Math.atan2(Math.sin(player.yaw - yawBefore), Math.cos(player.yaw - yawBefore)));
+  player.maxYawStep = Math.max(player.maxYawStep || 0, yawStep);
+
+  const water = player.pos.z < 16 ? 0.55 : 1;
+  const swing = (player.attackT || 0) > 0 ? 0.25 : 1;
+  const step = player.speed * water * swing * dt;
+  player.pos.x += Math.sin(player.yaw) * step;
+  player.pos.z += Math.cos(player.yaw) * step;
+  player.moving = player.speed > 0.35;
+  if (player.moving) player.phase += dt * player.speed * (player.speed > WALK_SPEED + 0.4 ? 2.6 : 2.15);
 
   if (player.grounded && input.jump) player.vy = 5.4;
   player.vy -= 16 * dt;
@@ -274,7 +292,8 @@ export function updatePlayer(player, dt, input, collision, cameraYaw) {
 
   player.mesh.position.set(player.pos.x, player.pos.y, player.pos.z);
   player.mesh.rotation.set(0, player.yaw, 0);
-  let mode = !player.grounded ? 'jump' : player.moving ? (run ? 'run' : 'walk') : 'idle';
+  const running = player.speed > WALK_SPEED + 0.35;
+  let mode = !player.grounded ? 'jump' : player.moving ? (running ? 'run' : 'walk') : 'idle';
   if ((player.attackT || 0) > 0) mode = player.attackKind || 'punch';
   poseHuman(player.mesh, player.phase, mode, dt);
 }

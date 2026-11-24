@@ -179,6 +179,7 @@ function makeVehicle(type, x, z, yaw, traffic, color) {
     pos: { x, z, y: 0 },
     yaw,
     speed: 0,
+    steer: 0,
     steerVisual: 0,
     ai: traffic,
     traffic,
@@ -391,32 +392,35 @@ function drivePlayer(vehicle, dt, input, collision, onCrash) {
       } else {
         throttle = mag;
       }
-      steer = clamp(diff / 0.65, -1, 1);
+      steer = clamp(diff / 1.15, -1, 1);
     }
+  }
+  if (handbrake && basis) {
+    // Augmenter le yaw déplace le nez vers la gauche de l'écran quand
+    // la voiture regarde comme la caméra. On inverse pour que stick
+    // droite = tourner vers la droite de l'écran.
+    const noseX = Math.cos(vehicle.yaw);
+    const noseZ = -Math.sin(vehicle.yaw);
+    const towardRight = noseX * basis.rightX + noseZ * basis.rightZ;
+    steer = input.right * (towardRight >= 0 ? 1 : -1);
   }
   let { speed } = vehicle;
+  vehicle.steer = damp(vehicle.steer || 0, steer, handbrake ? 8 : 4.8, dt);
+  const applied = vehicle.steer;
   if (handbrake) {
     speed = damp(speed, 0, 3.4, dt);
-    if (basis) {
-      // Augmenter le yaw déplace le nez vers la gauche de l'écran quand
-      // la voiture regarde comme la caméra. On inverse pour que stick
-      // droite = tourner vers la droite de l'écran.
-      const noseX = Math.cos(vehicle.yaw);
-      const noseZ = -Math.sin(vehicle.yaw);
-      const towardRight = noseX * basis.rightX + noseZ * basis.rightZ;
-      steer = input.right * (towardRight >= 0 ? 1 : -1);
-    }
-    vehicle.yaw += steer * spec.turn * 1.35 * dt;
+    vehicle.yaw += applied * spec.turn * 0.85 * dt;
   } else {
     const sign = speed >= -0.15 ? 1 : -1;
-    const boost = clamp(Math.abs(speed) / 4.5, 0.25, 1);
-    vehicle.yaw += steer * spec.turn * boost * sign * dt;
+    const speed01 = clamp(Math.abs(speed) / Math.max(6, spec.max), 0, 1);
+    const rate = spec.turn * (0.62 - 0.28 * speed01);
+    vehicle.yaw += applied * rate * sign * dt;
     let target = throttle > 0.05 ? spec.max * throttle : throttle < -0.05 ? -spec.reverse * -throttle : 0;
     if (input.nitro && target > 0) target *= vehicle.type === 'zem' ? 1.35 : 1.45;
-    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 8.5 : 5.4) : (vehicle.type === 'zem' ? 3.6 : 2.4);
+    const response = Math.abs(throttle) > 0.05 ? (vehicle.type === 'zem' ? 7.2 : 4.6) : (vehicle.type === 'zem' ? 3.2 : 2.2);
     speed = damp(speed, target, response * (input.nitro ? 1.35 : 1), dt);
   }
-  vehicle.steerVisual = steer;
+  vehicle.steerVisual = vehicle.steer || 0;
   const before = speed;
   let nx = vehicle.pos.x + Math.sin(vehicle.yaw) * speed * dt;
   let nz = vehicle.pos.z + Math.cos(vehicle.yaw) * speed * dt;

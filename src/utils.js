@@ -19,6 +19,15 @@ export function dampAngle(a, b, lambda, dt) {
   return a + d * (1 - Math.exp(-lambda * dt));
 }
 
+/** Tourne vers `b` sans dépasser `maxRate` rad/s. Le plus court chemin, jamais un demi-tour d'un coup. */
+export function turnToward(a, b, maxRate, dt) {
+  let d = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  const cap = Math.max(0, maxRate) * Math.max(0, dt);
+  if (d > cap) d = cap;
+  else if (d < -cap) d = -cap;
+  return a + d;
+}
+
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function rand() {
