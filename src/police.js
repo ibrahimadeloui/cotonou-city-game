@@ -43,6 +43,18 @@ export function createPolice(scene) {
   return {
     search,
     slip(seconds) { slip = Math.max(slip, seconds); },
+    reset() {
+      hidden = 0;
+      seen = false;
+      search.show = false;
+      for (const officer of officers) {
+        officer.catchT = 0;
+        officer.active = false;
+        officer.x = 0;
+        officer.z = 0;
+        officer.mesh.visible = false;
+      }
+    },
     update(dt, game, traffic) {
       slip = Math.max(0, slip - dt);
       const stars = game.wanted;

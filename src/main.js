@@ -40,6 +40,7 @@ import { createPolice } from './police.js';
 import { setupPwa } from './pwa.js';
 import { createStory } from './story.js';
 import { createVoices } from './voices.js';
+import { freshArrest, payOnce, tickArrest, tryArrest } from './arrest.js';
 import { createActor, createCrowd, loadCast } from './humanoid.js';
 import { nearestStall, nearestTalk, talkLine } from './stalls.js';
 import { createZemJob } from './zemjob.js';
@@ -421,6 +422,8 @@ let paused = false;
 let busting = false;
 let bustTimer = 0;
 let bustFine = 0;
+let arrest = freshArrest();
+let hospitalLock = 0;
 let wantedCool = 0;
 let lastCrime = 0;
 let bumpCool = 0;
@@ -542,24 +545,31 @@ function syncPolice() {
   if (cops.filter((cop) => !cop.leaving).length < target) traffic.spawnPolice(player);
 }
 
-function startBust() {
-  busting = true;
-  bustTimer = 0;
-  bustFine = Math.min(game.money, Math.max(game.money > 0 ? 400 : 0, Math.round((game.money * 0.28) / 50) * 50));
-  game.money -= bustFine;
-  story.noteBust();
-  game.wanted = 0;
-  wantedCool = 0;
+function clearPursuers() {
+  policeForce.reset();
   for (let i = traffic.list.length - 1; i >= 0; i -= 1) {
     const vehicle = traffic.list[i];
     if (!vehicle.police) continue;
     scene.remove(vehicle.mesh);
     traffic.list.splice(i, 1);
   }
-  const text = bustFine > 0
-    ? `Arrêté. Amende de ${formatFCFA(bustFine)}. Direction le commissariat.`
-    : 'Arrêté. Pas de quoi payer. Le commissariat te relâche.';
-  document.getElementById('bust-text').textContent = text;
+}
+
+function startBust() {
+  const result = tryArrest(arrest, game.money);
+  arrest = result.state;
+  if (!result.started) return;
+  busting = true;
+  bustTimer = 0;
+  bustFine = result.fine;
+  game.money = result.money;
+  story.noteBust();
+  game.wanted = 0;
+  wantedCool = 0;
+  clearPursuers();
+  const title = document.querySelector('#bust h2');
+  if (title) title.textContent = 'ARRÊTÉ';
+  document.getElementById('bust-text').textContent = result.text;
   document.getElementById('bust').classList.remove('hidden');
   audio.blip('bad');
 }
@@ -576,9 +586,13 @@ function finishBust() {
   rig.state.yaw = COMMISSARIAT.yaw;
   rig.snap();
   busting = false;
+  bustTimer = 0;
+  game.wanted = 0;
+  clearPursuers();
   document.getElementById('bust').classList.add('hidden');
   toast('Ibrahim sort du commissariat.');
-  story.afterBust();
+  if (story.afterBust()) arrest.pendingWanted = 2;
+  game.wanted = 0;
   story.persist(game.money, missions.state.jobs);
 }
 
@@ -825,11 +839,14 @@ function frame(now) {
     requestAnimationFrame(frame);
     return;
   }
-  if (busting) {
-    bustTimer += dt;
+  hospitalLock = Math.max(0, hospitalLock - dt);
+  if (arrest.active) {
+    const next = tickArrest(arrest, dt);
+    const ended = !next.active;
+    arrest = next;
     animateWorld(dt, time);
     lighting.update(dt, game.hour, focus, camera);
-    if (bustTimer > 2.7) finishBust();
+    if (ended) finishBust();
     ui.update(game, camera);
     present();
     requestAnimationFrame(frame);
@@ -888,7 +905,7 @@ function frame(now) {
     const ped = nearestTalk(player.pos, peds);
     if (stall) {
       if (game.money >= stall.price) {
-        game.money -= stall.price;
+        game.money = Math.max(0, game.money - stall.price);
         player.hp = Math.min(player.hpMax || 100, (player.hp || 100) + stall.heal);
         game.toast = stall.line;
         game.toastUntil = performance.now() + 2800;
@@ -972,9 +989,11 @@ function frame(now) {
     say(id) { voices.say(id); },
     onAttack() { addWanted('Tu as frappé quelqu\'un. La police est prévenue.'); },
     onHospital() {
-      game.money = Math.max(0, game.money - 500);
+      const bill = payOnce(hospitalLock, game.money, 500);
+      hospitalLock = bill.lock;
+      game.money = bill.money;
       story.persist(game.money, missions.state.jobs);
-      toast('L\'hôpital de Cotonou te remet debout.');
+      toast(bill.paid > 0 ? 'L\'hôpital de Cotonou te remet debout.' : 'L\'hôpital te garde, sans nouveau frais.');
       rig.state.yaw = player.yaw;
       rig.snap();
     },
@@ -1026,9 +1045,17 @@ function frame(now) {
     },
   });
 
-  const policeEvent = policeForce.update(dt, game, traffic);
+  arrest = tickArrest(arrest, dt);
+  if (arrest.grace > 0) {
+    game.wanted = 0;
+    bustTimer = 0;
+  } else if (arrest.pendingWanted) {
+    game.wanted = arrest.pendingWanted;
+    arrest.pendingWanted = 0;
+  }
+  const policeEvent = arrest.grace > 0 ? false : policeForce.update(dt, game, traffic);
   if (policeEvent === 'clear') toast('Tu sors de la zone. La police te perd de vue.');
-  if (policeEvent === 'caught') bustTimer = 2;
+  if (policeEvent === 'caught' && arrest.grace <= 0 && !arrest.active) bustTimer = 2;
   syncPolice();
 
   let bustClose = false;
@@ -1039,7 +1066,7 @@ function frame(now) {
   }
   if (bustClose) bustTimer += dt;
   else bustTimer = Math.max(0, bustTimer - dt * 0.35);
-  if (game.wanted > 0 && bustTimer > 1.05) startBust();
+  if (!arrest.active && arrest.grace <= 0 && game.wanted > 0 && bustTimer > 1.05) startBust();
 
   focus.set(player.pos.x, 0, player.pos.z);
   lighting.update(dt, game.hour, focus, camera);
