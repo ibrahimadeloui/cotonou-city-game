@@ -149,7 +149,7 @@ export function createAudio() {
         sirenOsc.frequency.setTargetAtTime(Math.sin(time * 9) > 0 ? 680 : 480, now, 0.05);
       }
       const market = Math.max(0, 1 - Math.hypot(x, z - 134) / 42);
-      marketGain.gain.setTargetAtTime(market * market * 0.045 * quiet, now, 0.12);
+      marketGain.gain.setTargetAtTime(market * market * 0.028 * quiet, now, 0.12);
       const maquis = Math.max(0, 1 - Math.hypot(x + 148, z - 28) / 28);
       const wobble = 0.7 + Math.sin(time * 1.7) * 0.3;
       musicGain.gain.setTargetAtTime(maquis * maquis * 0.02 * wobble * quiet, now, 0.1);
