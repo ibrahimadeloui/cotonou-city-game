@@ -445,11 +445,26 @@ function resize() {
 }
 resize();
 window.addEventListener('resize', resize);
+window.addEventListener('gesturestart', (event) => event.preventDefault());
+window.addEventListener('selectstart', (event) => event.preventDefault());
 window.visualViewport?.addEventListener('resize', resize);
 
 if (story.save) missions.state.jobs = story.save.jobs;
+const COACH = [
+  'Joystick à gauche : marcher. Pousse à fond pour courir.',
+  'À droite : Parler, Monter, Frapper. Le zem et le SUV sont jaunes ou noirs.',
+  'Les missions paient en FCFA. Le maquis soigne. L\'amende de police ne part qu\'une fois.',
+];
+let coachStep = -1;
+function showCoach() {
+  if (localStorage.getItem('cotonou-coach') || window.__cotonouFast) return;
+  coachStep = 0;
+  toast(COACH[0]);
+  game.toastUntil = performance.now() + 4200;
+}
 document.getElementById('brief-go')?.addEventListener('click', () => {
   story.begin();
+  showCoach();
   note('brief');
 });
 document.getElementById('result-ok')?.addEventListener('click', () => {
@@ -816,10 +831,16 @@ function frame(now) {
     toast('Selfie.');
     note('selfie');
   }
-  if (edges.pause && !busting) {
-    paused = !paused;
-    document.getElementById('pause').classList.toggle('hidden', !paused);
-    note('pause');
+  if (edges.pause && !busting && !arrest.active) {
+    if (story.sceneOn()) {
+      voices.skip();
+      story.skipScene();
+      note('skip-scene');
+    } else {
+      paused = !paused;
+      document.getElementById('pause').classList.toggle('hidden', !paused);
+      note('pause');
+    }
   }
   if (story.sceneOn()) {
     const shot = story.tickScene(dt, player, peds);
@@ -906,6 +927,7 @@ function frame(now) {
     if (stall) {
       if (game.money >= stall.price) {
         game.money = Math.max(0, game.money - stall.price);
+        story.persist(game.money, missions.state.jobs);
         player.hp = Math.min(player.hpMax || 100, (player.hp || 100) + stall.heal);
         game.toast = stall.line;
         game.toastUntil = performance.now() + 2800;
@@ -979,6 +1001,7 @@ function frame(now) {
   if (fare.event === 'pick') toast(fare.place ? `Client à bord. Direction ${fare.place}.` : 'Client à bord.');
   if (fare.event === 'drop') {
     game.money += fare.pay || 0;
+    story.persist(game.money, missions.state.jobs);
     toast(`Course payée : ${(fare.pay || 0).toLocaleString('fr-FR')} FCFA.`);
     audio.blip('cash');
   }
@@ -1100,6 +1123,16 @@ function frame(now) {
     z: player.pos.z,
     vehicles: traffic.list,
   });
+  if (coachStep >= 0 && performance.now() > game.toastUntil - 400) {
+    coachStep += 1;
+    if (coachStep >= COACH.length) {
+      coachStep = -1;
+      localStorage.setItem('cotonou-coach', '1');
+    } else {
+      toast(COACH[coachStep]);
+      game.toastUntil = performance.now() + 4200;
+    }
+  }
   const stallNear = player.vehicle ? null : nearestStall(player.pos);
   const talker = player.vehicle ? null : nearestTalk(player.pos, peds);
   game.useLabel = stallNear ? 'Acheter' : talker ? 'Parler' : '';
@@ -1108,6 +1141,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+try { renderer.compile(scene, camera); } catch { /* le premier rendu compile quand même */ }
 requestAnimationFrame(frame);
 }
 

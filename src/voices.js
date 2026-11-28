@@ -1,3 +1,5 @@
+import { createLineClock } from './line-clock.js';
+
 const LINES = {
   cava: { speaker: 'Passant', text: 'Ça va ?' },
   doucement: { speaker: 'Passant', text: 'Doucement !' },
@@ -33,6 +35,8 @@ export function createVoices(audio) {
   let held = false;
   let cool = 4;
   let frenchVoice = null;
+  let generation = 0;
+  const clock = createLineClock();
 
   function pickVoice() {
     const synth = window.speechSynthesis;
@@ -64,7 +68,10 @@ export function createVoices(audio) {
     audio?.setTalking(false);
   }
 
-  function finish() {
+  function finish(gen) {
+    if (gen != null && gen !== generation) return;
+    generation += 1;
+    clock.done();
     current = null;
     if (queue.length) {
       play(queue.shift());
@@ -85,8 +92,8 @@ export function createVoices(audio) {
       utter.volume = 1;
       if (!frenchVoice) pickVoice();
       if (frenchVoice) utter.voice = frenchVoice;
-      utter.onend = done;
-      utter.onerror = done;
+      utter.onend = () => done();
+      utter.onerror = () => done();
       synth.speak(utter);
       return true;
     } catch {
@@ -95,18 +102,21 @@ export function createVoices(audio) {
   }
 
   function play(line) {
+    generation += 1;
+    const gen = generation;
     current = line;
     if (line.hold) held = true;
     show(line);
     audio?.setTalking(true);
-    const spoken = speak(line, finish);
+    clock.start(line.text);
+    const done = () => finish(gen);
+    const spoken = speak(line, done);
     if (spoken) return;
     const url = line.id ? clipUrl(line.id) : '';
     if (url && audio?.playClip) {
-      audio.playClip(url, { pan: line.pan || 0, onend: finish });
+      audio.playClip(url, { pan: line.pan || 0, onend: done });
       return;
     }
-    window.setTimeout(finish, 2200);
   }
 
   function enqueue(line) {
@@ -127,6 +137,8 @@ export function createVoices(audio) {
   }
 
   function skip() {
+    generation += 1;
+    clock.done();
     held = false;
     queue.length = 0;
     try { window.speechSynthesis?.cancel(); } catch { /* rien */ }
@@ -141,6 +153,7 @@ export function createVoices(audio) {
     skip,
     talking() { return Boolean(current) || queue.length > 0; },
     tick(dt, player, peds) {
+      if (clock.tick(dt * 1000)) finish(generation);
       cool -= dt;
       if (cool > 0 || player.vehicle || current) return;
       let nearest = Infinity;
